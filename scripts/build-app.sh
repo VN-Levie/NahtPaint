@@ -34,5 +34,18 @@ fi
 if [[ -d "$BIN_DIR/NathPaint_PaintCore.bundle" ]]; then
   ditto "$BIN_DIR/NathPaint_PaintCore.bundle" "$APP/Contents/Resources/NathPaint_PaintCore.bundle"
 fi
+cp LICENSE "$APP/Contents/Resources/LICENSE.txt"
+# SwiftPM release binaries retain debug-map entries with absolute source/object paths.
+# Remove only debug symbols, before signing, so they cannot leak into release archives.
+codesign --remove-signature "$APP/Contents/MacOS/NathPaint"
+xcrun strip -S "$APP/Contents/MacOS/NathPaint"
+python3 - "$APP/Contents/MacOS/NathPaint" <<'PY'
+import sys
+from pathlib import Path
+binary = Path(sys.argv[1]).read_bytes()
+if any(prefix in binary for prefix in (b"/Users/", b"/home/", b"/private/var/", b"/var/folders/")):
+    raise SystemExit("Build contains a local user or temporary path; refusing to package it.")
+PY
 codesign --force --sign - "$APP"
+codesign --verify --deep --strict --all-architectures "$APP"
 printf 'Built: %s\n' "$APP"

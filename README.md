@@ -8,9 +8,8 @@ A small native macOS paint app inspired by the direct, familiar workflow of Wind
 
 Download **NathPaint-0.2.2-macOS-universal.zip** from the [latest GitHub Release](https://github.com/VN-Levie/NathPaint/releases/latest). The app supports **Apple Silicon and Intel Macs running macOS 14 or later**. No Xcode or additional runtime installation is needed.
 
-1. Sign in to a GitHub account with access to this private repository.
-2. Download the app ZIP under **Assets**, extract it, and drag **NathPaint.app** into **Applications**.
-3. Open NathPaint. This build is ad-hoc signed and is not Apple-notarized. If macOS blocks it, use **System Settings → Privacy & Security → Open Anyway** after trying to open the app. See [Apple's instructions](https://support.apple.com/en-au/102445).
+1. Download the app ZIP under **Assets**, extract it, and drag **NathPaint.app** into **Applications**. No GitHub account is required.
+2. Open NathPaint. This build is ad-hoc signed and is not Apple-notarized. If macOS blocks it, use **System Settings → Privacy & Security → Open Anyway** after trying to open the app. See [Apple's instructions](https://support.apple.com/en-au/102445).
 
 ## Build and run
 
@@ -84,4 +83,8 @@ The app logo was created with the built-in ImageGen tool and packaged as a macOS
 
 ## Distribution
 
-`build-app.sh` creates an ad-hoc signed app for the current Mac architecture; pass `--universal` to include both `arm64` and `x86_64`. The release ZIP includes all app resources. It is ad-hoc signed, without a Developer ID signature or Apple notarization, so a new Mac may require the first-open approval described above. The current functional tests ran on Apple Silicon; the Intel build has been compiled and checked but has not been run on an Intel Mac. Build output and local preferences are excluded from Git.
+`build-app.sh` creates an ad-hoc signed app for the current Mac architecture; pass `--universal` to include both `arm64` and `x86_64`. Before signing, it removes debug-symbol metadata and checks that the executable contains no local user or temporary paths. The release ZIP includes all app resources and the MIT license. It is ad-hoc signed, without a Developer ID signature or Apple notarization, so a new Mac may require the first-open approval described above. The current functional tests ran on Apple Silicon; the Intel build has been compiled and checked but has not been run on an Intel Mac. Build output and local preferences are excluded from Git.
+
+## License
+
+NathPaint is available under the [MIT License](LICENSE). You may use, modify, and redistribute it, including commercially, provided you retain the copyright and license notice. The software is provided without warranty.
