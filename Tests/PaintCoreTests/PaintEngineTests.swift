@@ -280,6 +280,127 @@ final class PaintEngineTests: XCTestCase {
         }
     }
 
+    func testTextDefaultsRemainTransparentAndTextColorIsIndependentFromBrushColor() async throws {
+        try await MainActor.run {
+            _ = NSApplication.shared
+            let engine = PaintEngine()
+            try engine.loadImage(Self.image(width: 96, height: 64, pixels: Array(repeating: .clear, count: 96 * 64)))
+            XCTAssertFalse(engine.textBorder)
+            XCTAssertFalse(engine.textBackgroundEnabled)
+            engine.fontSize = 18
+            engine.color = NSColor(srgbRed: 0, green: 1, blue: 0, alpha: 1)
+            engine.textColor = NSColor(srgbRed: 1, green: 0, blue: 0, alpha: 1)
+            engine.insertText("Paint", at: CGPoint(x: 4, y: 4), width: 80)
+
+            let result = try Self.bitmap(engine.exportPNG())
+            XCTAssertEqual(try Self.pixel(result, x: 4, y: 4).alpha, 0, "Default text must not create a border or opaque background")
+            XCTAssertEqual(try Self.pixel(result, x: 6, y: 6).alpha, 0, "Text padding must stay transparent")
+            var redPixels = 0
+            var greenPixels = 0
+            for y in 0..<64 {
+                for x in 0..<96 {
+                    let pixel = try Self.pixel(result, x: x, y: y)
+                    guard pixel.alpha > 200 else { continue }
+                    if pixel.red > 200 && pixel.green < 20 && pixel.blue < 20 { redPixels += 1 }
+                    if pixel.green > 200 && pixel.red < 20 && pixel.blue < 20 { greenPixels += 1 }
+                }
+            }
+            XCTAssertGreaterThan(redPixels, 20, "Glyphs should use the separate text color")
+            XCTAssertEqual(greenPixels, 0, "The brush color must not color text")
+            engine.undo()
+            let restored = try Self.bitmap(engine.exportPNG())
+            for y in 0..<64 {
+                for x in 0..<96 {
+                    XCTAssertEqual(try Self.pixel(restored, x: x, y: y).alpha, 0)
+                }
+            }
+        }
+    }
+
+    func testTextBackgroundAndBorderStayInsideBoxAndUndoTogether() async throws {
+        try await MainActor.run {
+            _ = NSApplication.shared
+            let engine = PaintEngine()
+            try engine.loadImage(Self.image(width: 96, height: 64, pixels: Array(repeating: .clear, count: 96 * 64)))
+            engine.fontSize = 18
+            engine.textColor = NSColor(srgbRed: 1, green: 0, blue: 0, alpha: 1)
+            engine.textBackgroundEnabled = true
+            engine.textBackgroundColor = NSColor(srgbRed: 0, green: 0, blue: 1, alpha: 1)
+            engine.textBorder = true
+            engine.insertText("A", at: CGPoint(x: 4, y: 4), width: 80)
+
+            let result = try Self.bitmap(engine.exportPNG())
+            try Self.assertPixel(result, x: 6, y: 6, equals: .blue)
+            try Self.assertPixel(result, x: 4, y: 5, equals: .red)
+            XCTAssertEqual(try Self.pixel(result, x: 3, y: 5).alpha, 0)
+            XCTAssertEqual(try Self.pixel(result, x: 5, y: 3).alpha, 0)
+            XCTAssertEqual(try Self.pixel(result, x: 90, y: 60).alpha, 0)
+            engine.undo()
+            let restored = try Self.bitmap(engine.exportPNG())
+            XCTAssertEqual(try Self.pixel(restored, x: 6, y: 6).alpha, 0)
+            XCTAssertEqual(try Self.pixel(restored, x: 4, y: 5).alpha, 0)
+            XCTAssertFalse(engine.isDirty)
+        }
+    }
+
+    func testCropToolMovesWindowWithoutMovingImageUntilConfirmed() async throws {
+        try await MainActor.run {
+            let engine = PaintEngine()
+            try engine.loadImage(Self.image(width: 4, height: 2, pixels: [
+                .red, .green, .blue, .white,
+                .white, .blue, .green, .red
+            ]))
+            engine.tool = .crop
+            engine.select(rect: CGRect(x: 0, y: 0, width: 1, height: 2))
+            XCTAssertEqual(engine.tool, .crop)
+            XCTAssertFalse(engine.isDirty)
+            engine.moveSelection(to: CGPoint(x: 2, y: 0))
+            XCTAssertEqual(engine.selectionRect, CGRect(x: 2, y: 0, width: 1, height: 2))
+            XCTAssertFalse(engine.isDirty, "Choosing a crop region must not change document pixels")
+            XCTAssertEqual(engine.width, 4)
+            XCTAssertEqual(engine.height, 2)
+            let preview = try Self.bitmap(engine.exportPNG())
+            try Self.assertPixel(preview, x: 0, y: 0, equals: .red)
+            try Self.assertPixel(preview, x: 2, y: 0, equals: .blue)
+
+            engine.confirmSelection()
+            XCTAssertEqual(engine.width, 1)
+            XCTAssertEqual(engine.height, 2)
+            XCTAssertNil(engine.selectionRect)
+            XCTAssertTrue(engine.isDirty)
+            let cropped = try Self.bitmap(engine.exportPNG())
+            try Self.assertPixel(cropped, x: 0, y: 0, equals: .blue)
+            try Self.assertPixel(cropped, x: 0, y: 1, equals: .green)
+            engine.undo()
+            XCTAssertEqual(engine.width, 4)
+            XCTAssertEqual(engine.height, 2)
+            XCTAssertFalse(engine.isDirty)
+            try Self.assertPixel(Self.bitmap(engine.exportPNG()), x: 0, y: 0, equals: .red)
+        }
+    }
+
+    func testCancellingCropToolLeavesOriginalPixelsAndDimensionsUntouched() async throws {
+        try await MainActor.run {
+            let engine = PaintEngine()
+            let pixels: [Pixel] = [.red, .green, .blue, .white, .white, .blue, .green, .red]
+            try engine.loadImage(Self.image(width: 4, height: 2, pixels: pixels))
+            engine.tool = .crop
+            engine.select(rect: CGRect(x: 0, y: 0, width: 1, height: 2))
+            engine.moveSelection(to: CGPoint(x: 2, y: 0))
+            engine.cancelSelection()
+
+            XCTAssertEqual(engine.tool, .crop)
+            XCTAssertEqual(engine.width, 4)
+            XCTAssertEqual(engine.height, 2)
+            XCTAssertNil(engine.selectionRect)
+            XCTAssertFalse(engine.isDirty)
+            let result = try Self.bitmap(engine.exportPNG())
+            for (index, expected) in pixels.enumerated() {
+                try Self.assertPixel(result, x: index % 4, y: index / 4, equals: expected)
+            }
+        }
+    }
+
     private struct Pixel: Equatable {
         let red: Int
         let green: Int

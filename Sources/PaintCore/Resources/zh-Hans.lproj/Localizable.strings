@@ -146,3 +146,8 @@
 "Light" = "浅色";
 "Dark" = "深色";
 "Only the interface changes. The canvas and image colors stay unchanged." = "仅更改界面外观。画布和图像颜色保持不变。";
+"Text color" = "文字颜色";
+"Border" = "边框";
+"Background" = "背景";
+"Background color" = "背景颜色";
+"Drag to select · Return to crop · Esc to cancel" = "拖动选择 · Return 裁剪 · Esc 取消";

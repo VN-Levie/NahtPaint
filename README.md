@@ -28,7 +28,10 @@ Use **Return** to place a floating selection and **Escape** to cancel it. Text i
 ## Tools and files
 
 - Rectangular selection with drag, corner resizing, arrow-key nudging, cut, copy, delete and crop.
-- Pencil, brush, eraser, flood fill, eyedropper, text, line, rectangle and ellipse.
+- Pencil, brush, eraser, flood fill, eyedropper, text, line, rectangle and ellipse. Pencil/brush/eraser show the actual stroke footprint under the pointer, scaled with zoom.
+- Tool shortcuts: **P** pencil, **B** brush, **E** eraser, **C** crop, **M** select, **T** text, **G** fill, **I** eyedropper, **L** line, **R** rectangle, **O** ellipse. Tool letters are inactive while entering text.
+- Crop tool: drag a crop area and press Return to apply; Escape cancels.
+- Inline text with independent color, size, optional border and optional background color. The bottom palette changes text color when the Text tool is active.
 - Preset and custom colors, brush width, text size, shape fill and zoom.
 - Image resizing and canvas sizing through the Image menu.
 - Image-file drag and drop, Open, Save and Save As. PNG retains alpha; JPEG composites transparency onto white.

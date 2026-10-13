@@ -78,7 +78,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         return false
     }
     private var textEditor: NSTextView? {
-        guard let text = window?.firstResponder as? NSTextView, text.isEditable else { return nil }
+        guard let text = NSApp.keyWindow?.firstResponder as? NSTextView, text.isEditable else { return nil }
         return text
     }
     func copy() { if let text = textEditor { text.copy(nil) } else { engine.copyToClipboard() } }

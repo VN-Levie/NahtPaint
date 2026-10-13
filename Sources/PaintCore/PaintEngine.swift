@@ -2,11 +2,12 @@ import AppKit
 import Combine
 
 public enum PaintTool: String, CaseIterable, Identifiable {
-    case select, pencil, brush, eraser, fill, eyedropper, text, line, rectangle, ellipse
+    case select, crop, pencil, brush, eraser, fill, eyedropper, text, line, rectangle, ellipse
     public var id: String { rawValue }
     public var title: String {
         switch self {
         case .select: return L10n.tr("Select")
+        case .crop: return L10n.tr("Crop")
         case .pencil: return L10n.tr("Pencil")
         case .brush: return L10n.tr("Brush")
         case .eraser: return L10n.tr("Eraser")
@@ -21,6 +22,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     public var symbol: String {
         switch self {
         case .select: return "selection.pin.in.out"
+        case .crop: return "crop"
         case .pencil: return "pencil"
         case .brush: return "paintbrush.pointed"
         case .eraser: return "eraser"
@@ -35,6 +37,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     public var shortcut: String {
         switch self {
         case .select: return "M"
+        case .crop: return "C"
         case .pencil: return "P"
         case .brush: return "B"
         case .eraser: return "E"
@@ -53,6 +56,10 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         didSet { if oldValue != tool { finishEditing(); commitSelection(); status = tool.title } }
     }
     @Published public var color: NSColor = .black
+    @Published public var textColor: NSColor = .black
+    @Published public var textBorder = false
+    @Published public var textBackgroundEnabled = false
+    @Published public var textBackgroundColor: NSColor = .white
     @Published public var brushSize: CGFloat = 3
     @Published public var fontSize: CGFloat = 24
     @Published public var fillShapes = false
@@ -77,6 +84,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         var rect: CGRect
         var originalRect: CGRect?
         var before: Snapshot
+        var isCrop = false
     }
     var bitmap: Bitmap
     var selection: Selection?
@@ -115,7 +123,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     private func refresh() {
         canUndo = !undoStack.isEmpty || selection != nil
         canRedo = !redoStack.isEmpty
-        isDirty = revision != savedRevision || selection.map { $0.originalRect == nil || $0.rect != $0.originalRect } == true
+        isDirty = revision != savedRevision || selection.map { !$0.isCrop && ($0.originalRect == nil || $0.rect != $0.originalRect) } == true
         renderVersion &+= 1
     }
     private func record(_ before: Snapshot) {
@@ -167,17 +175,23 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         finishEditing(); commitSelection()
         let clipped = rect.standardized.integral.intersection(CGRect(x: 0, y: 0, width: width, height: height))
         guard !clipped.isNull, clipped.width >= 1, clipped.height >= 1 else { return }
-        tool = .select
+        if tool != .crop { tool = .select }
         let before = snapshot()
-        selection = Selection(image: bitmap.crop(clipped), rect: clipped, originalRect: clipped, before: before)
-        bitmap.clear(clipped); hasSelection = true
-        status = L10n.tr("Selection · Drag to move · Return to place · Esc to cancel")
+        selection = Selection(image: bitmap.crop(clipped), rect: clipped, originalRect: clipped, before: before, isCrop: tool == .crop)
+        if tool != .crop { bitmap.clear(clipped) }
+        hasSelection = true
+        status = L10n.tr(tool == .crop ? "Drag to select · Return to crop · Esc to cancel" : "Selection · Drag to move · Return to place · Esc to cancel")
         refresh()
     }
     public func selectAll() { select(rect: CGRect(x: 0, y: 0, width: width, height: height)) }
     public func moveSelection(to point: CGPoint) {
         guard selection != nil, point.x.isFinite, point.y.isFinite else { return }
-        selection?.rect.origin = CGPoint(x: max(-8192, min(8192, point.x.rounded())), y: max(-8192, min(8192, point.y.rounded())))
+        if let active = selection, active.isCrop {
+            selection?.rect.origin = CGPoint(x: max(0, min(CGFloat(width) - active.rect.width, point.x.rounded())),
+                                             y: max(0, min(CGFloat(height) - active.rect.height, point.y.rounded())))
+        } else {
+            selection?.rect.origin = CGPoint(x: max(-8192, min(8192, point.x.rounded())), y: max(-8192, min(8192, point.y.rounded())))
+        }
         refresh()
     }
     public func resizeSelection(to size: CGSize) {
@@ -185,11 +199,19 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         let w = Int(max(1, min(8192, size.width.rounded())))
         let h = Int(max(1, min(8192, size.height.rounded())))
         guard (try? Bitmap.validate(w, h)) != nil else { status = PaintError.invalidSize.localizedDescription; return }
-        selection?.rect.size = CGSize(width: w, height: h)
+        if let active = selection, active.isCrop {
+            selection?.rect.size = CGSize(width: min(CGFloat(w), CGFloat(width) - active.rect.minX),
+                                         height: min(CGFloat(h), CGFloat(height) - active.rect.minY))
+        } else { selection?.rect.size = CGSize(width: w, height: h) }
         refresh()
     }
     func setSelectionRect(_ rect: CGRect) {
         guard rect.width.isFinite, rect.height.isFinite, rect.width > 0, rect.height > 0 else { return }
+        if selection?.isCrop == true {
+            let clipped = rect.integral.intersection(CGRect(x: 0, y: 0, width: width, height: height))
+            guard !clipped.isNull, clipped.width >= 1, clipped.height >= 1 else { return }
+            selection?.rect = clipped; refresh(); return
+        }
         let w = Int(max(1, min(8192, rect.width.rounded())))
         let h = Int(max(1, min(8192, rect.height.rounded())))
         guard (try? Bitmap.validate(w, h)) != nil else { status = PaintError.invalidSize.localizedDescription; return }
@@ -197,6 +219,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     }
     private func composited() -> Bitmap {
         guard let selection else { return bitmap }
+        if selection.isCrop { return bitmap }
         if selection.originalRect == selection.rect { return selection.before.bitmap }
         var result = bitmap
         result.composite(selection.image, in: selection.rect)
@@ -205,12 +228,16 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     public func canvasImage() -> NSImage { composited().nsImage() }
     public func commitSelection() {
         guard let active = selection else { return }
+        if active.isCrop { selection = nil; hasSelection = false; refresh(); return }
         if active.originalRect == active.rect {
             bitmap = active.before.bitmap
             selection = nil; hasSelection = false; refresh(); return
         }
         bitmap = composited(); selection = nil; hasSelection = false
         record(active.before); status = L10n.tr("Selection placed")
+    }
+    public func confirmSelection() {
+        if selection?.isCrop == true { cropToSelection() } else { commitSelection() }
     }
     public func cancelSelection() {
         guard let active = selection else { return }
@@ -219,6 +246,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     public func deleteSelection() {
         finishEditing()
         guard let active = selection else { return }
+        if active.isCrop { cancelSelection(); return }
         selection = nil; hasSelection = false
         record(active.before); status = L10n.tr("Selection deleted")
     }
@@ -271,6 +299,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     public func selectionPNG() throws -> Data? {
         finishEditing()
         guard let active = selection else { return nil }
+        if active.isCrop { return try bitmap.crop(active.rect).encoded(.png) }
         try Bitmap.validate(Int(active.rect.width), Int(active.rect.height))
         return try active.image.resized(width: Int(active.rect.width), height: Int(active.rect.height)).encoded(.png)
     }
@@ -351,8 +380,9 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         if bitmap.pixels != before.bitmap.pixels { record(before); status = tool.title }
     }
     private var drawingColor: NSColor { (tool == .eraser ? NSColor.white : color).usingColorSpace(.sRGB) ?? .black }
+    var effectiveBrushSize: CGFloat { max(1, min(128, brushSize)) }
     private func drawLine(from start: CGPoint, to end: CGPoint) {
-        let size = max(1, min(128, tool == .eraser ? max(8, brushSize) : brushSize))
+        let size = effectiveBrushSize
         let cg = drawingColor.cgColor
         bitmap.withContext { context in
             context.setStrokeColor(cg); context.setFillColor(cg); context.setLineWidth(size)
@@ -394,20 +424,42 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         }
     }
     func insertText(_ string: String, at point: CGPoint, width: CGFloat) {
-        guard !string.isEmpty else { return }
+        guard !string.isEmpty, point.x.isFinite, point.y.isFinite, width.isFinite else { return }
         commitSelection()
         let before = snapshot()
-        let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byWordWrapping
-        let attributed = NSAttributedString(string: string, attributes: [.font: NSFont.systemFont(ofSize: fontSize), .foregroundColor: color, .paragraphStyle: paragraph])
-        let bounds = attributed.boundingRect(with: CGSize(width: max(1, width), height: 8192), options: [.usesLineFragmentOrigin, .usesFontLeading])
-        let size = NSSize(width: max(1, ceil(min(width, bounds.width)) + 4), height: max(1, ceil(bounds.height) + 4))
+        let origin = CGPoint(x: max(0, min(CGFloat(self.width - 1), floor(point.x))),
+                             y: max(0, min(CGFloat(height - 1), floor(point.y))))
+        let availableWidth = max(1, min(width, CGFloat(self.width) - origin.x))
+        let availableHeight = CGFloat(height) - origin.y
+        let storage = NSTextStorage(string: string, attributes: textAttributes())
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(size: CGSize(width: max(1, availableWidth - Self.textInset * 2), height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        storage.addLayoutManager(layout); layout.addTextContainer(container)
+        layout.ensureLayout(for: container)
+        let used = layout.usedRect(for: container)
+        let size = NSSize(width: max(1, min(availableWidth, ceil(used.maxX) + Self.textInset * 2)),
+                          height: max(1, min(availableHeight, ceil(used.maxY) + Self.textInset * 2)))
         guard (try? Bitmap.validate(Int(size.width), Int(size.height))) != nil else { status = L10n.tr("Text is too large"); return }
         let image = NSImage(size: size)
         image.lockFocusFlipped(true)
-        attributed.draw(with: CGRect(origin: .zero, size: size), options: [.usesLineFragmentOrigin, .usesFontLeading])
+        let box = CGRect(origin: .zero, size: size)
+        NSBezierPath(rect: box).addClip()
+        if textBackgroundEnabled { textBackgroundColor.setFill(); box.fill() }
+        if textBorder {
+            textColor.setStroke()
+            let border = NSBezierPath(rect: box.insetBy(dx: 0.5, dy: 0.5)); border.lineWidth = 1; border.stroke()
+        }
+        layout.drawGlyphs(forGlyphRange: layout.glyphRange(for: container), at: CGPoint(x: Self.textInset, y: Self.textInset))
         image.unlockFocus()
         if let layer = try? Bitmap(image: image) {
-            bitmap.composite(layer, in: CGRect(origin: point, size: size)); record(before); status = L10n.tr("Text placed")
+            bitmap.composite(layer, in: CGRect(origin: origin, size: size)); record(before); status = L10n.tr("Text placed")
         }
+    }
+    static let textInset: CGFloat = 4
+    func textAttributes(scale: CGFloat = 1) -> [NSAttributedString.Key: Any] {
+        let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byWordWrapping
+        let safeSize = fontSize.isFinite ? max(1, min(512, fontSize)) : 24
+        return [.font: NSFont.systemFont(ofSize: safeSize * scale), .foregroundColor: textColor, .paragraphStyle: paragraph]
     }
 }

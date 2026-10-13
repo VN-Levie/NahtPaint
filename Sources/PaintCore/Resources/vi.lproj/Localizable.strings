@@ -146,3 +146,8 @@
 "Light" = "Sáng";
 "Dark" = "Tối";
 "Only the interface changes. The canvas and image colors stay unchanged." = "Chỉ thay đổi giao diện. Màu của khung vẽ và ảnh được giữ nguyên.";
+"Text color" = "Màu chữ";
+"Border" = "Viền";
+"Background" = "Nền";
+"Background color" = "Màu nền";
+"Drag to select · Return to crop · Esc to cancel" = "Kéo để chọn · Return để cắt · Esc để hủy";

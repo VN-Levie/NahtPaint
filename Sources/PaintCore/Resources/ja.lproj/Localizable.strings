@@ -146,3 +146,8 @@
 "Light" = "ライト";
 "Dark" = "ダーク";
 "Only the interface changes. The canvas and image colors stay unchanged." = "インターフェイスのみ変更します。キャンバスと画像の色は変わりません。";
+"Text color" = "文字色";
+"Border" = "枠線";
+"Background" = "背景";
+"Background color" = "背景色";
+"Drag to select · Return to crop · Esc to cancel" = "ドラッグで選択 · Return で切り抜く · Esc でキャンセル";

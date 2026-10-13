@@ -71,31 +71,47 @@ struct EditorView: View {
     }
 
     private var optionsBar: some View {
-        HStack(spacing: 14) {
-            Text(engine.tool.title).font(.system(size: 12, weight: .semibold)).lineLimit(2).frame(width: 92, alignment: .leading)
-            if engine.tool == .text {
-                Text(L10n.tr("Text size")).font(.system(size: 11))
-                Picker(L10n.tr("Text size"), selection: $engine.fontSize) {
-                    ForEach([12, 16, 20, 24, 32, 48, 64, 96], id: \.self) { size in Text("\(size) pt").tag(CGFloat(size)) }
-                }.labelsHidden().frame(width: 90)
-                Text(L10n.tr("Click to type · ⌘Return to finish")).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
-            } else if engine.tool == .select {
-                Text(L10n.tr("Drag to select · drag corners to resize · Return to place")).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
-            } else {
-                Text(L10n.tr("Size")).font(.system(size: 11))
-                Slider(value: $engine.brushSize, in: 1...40, step: 1).frame(width: 100)
-                Text("\(Int(engine.brushSize)) px").font(.system(size: 11).monospacedDigit()).frame(width: 36, alignment: .leading)
-                if engine.tool == .rectangle || engine.tool == .ellipse {
-                    Toggle(L10n.tr("Fill"), isOn: $engine.fillShapes).toggleStyle(.checkbox).font(.system(size: 11))
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 12) {
+                Text(engine.tool.title).font(.system(size: 12, weight: .semibold)).lineLimit(2).frame(width: 92, alignment: .leading)
+                if engine.tool == .text {
+                    Picker(L10n.tr("Text size"), selection: $engine.fontSize) {
+                        ForEach([12, 16, 20, 24, 32, 48, 64, 96], id: \.self) { size in Text("\(size) pt").tag(CGFloat(size)) }
+                    }.labelsHidden().frame(width: 78).help(L10n.tr("Text size"))
+                    ColorPicker(L10n.tr("Text color"), selection: Binding(get: { Color(nsColor: engine.textColor) }, set: { engine.textColor = NSColor($0) }))
+                        .fixedSize()
+                    Toggle(L10n.tr("Border"), isOn: $engine.textBorder).toggleStyle(.checkbox)
+                    Toggle(L10n.tr("Background"), isOn: $engine.textBackgroundEnabled).toggleStyle(.checkbox)
+                    if engine.textBackgroundEnabled {
+                        ColorPicker(L10n.tr("Background color"), selection: Binding(get: { Color(nsColor: engine.textBackgroundColor) }, set: { engine.textBackgroundColor = NSColor($0) }))
+                            .labelsHidden().help(L10n.tr("Background color"))
+                    }
+                } else if engine.tool == .select || engine.tool == .crop {
+                    Text(L10n.tr(engine.tool == .crop ? "Drag to select · Return to crop · Esc to cancel" : "Drag to select · drag corners to resize · Return to place"))
+                        .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                } else {
+                    Text(L10n.tr("Size"))
+                    Slider(value: $engine.brushSize, in: 1...40, step: 1).frame(width: 100)
+                    Text("\(Int(engine.brushSize)) px").monospacedDigit().frame(width: 36, alignment: .leading)
+                    if engine.tool == .rectangle || engine.tool == .ellipse {
+                        Toggle(L10n.tr("Fill"), isOn: $engine.fillShapes).toggleStyle(.checkbox)
+                    }
                 }
+                Spacer(minLength: 0)
+                Button(L10n.tr("Resize…")) { controller.presentResize(scale: true) }
             }
-            Spacer(minLength: 0)
-            Button(L10n.tr("Resize…")) { controller.presentResize(scale: true) }.font(.system(size: 11))
+            .font(.system(size: 11)).frame(minHeight: 29)
         }
-        .frame(height: 29).padding(.horizontal, 12)
+        .padding(.horizontal, 12).frame(height: 35)
+    }
+
+    private var currentColor: NSColor { engine.tool == .text ? engine.textColor : engine.color }
+    private func setCurrentColor(_ color: NSColor) {
+        if engine.tool == .text { engine.textColor = color } else { engine.color = color }
     }
 
     private var toolbox: some View {
+        ScrollView(.vertical) {
         VStack(spacing: 8) {
             LazyVGrid(columns: [GridItem(.fixed(46), spacing: 4), GridItem(.fixed(46), spacing: 4)], spacing: 5) {
                 ForEach(PaintTool.allCases) { tool in
@@ -117,7 +133,7 @@ struct EditorView: View {
             }
             Divider().padding(.vertical, 5)
             RoundedRectangle(cornerRadius: 2)
-                .fill(Color(nsColor: engine.color))
+                .fill(Color(nsColor: currentColor))
                 .frame(width: 36, height: 36)
                 .overlay(RoundedRectangle(cornerRadius: 2).stroke(edge))
                 .padding(7)
@@ -127,12 +143,13 @@ struct EditorView: View {
             Text(L10n.tr("COLOR")).font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
             Spacer()
         }
-        .padding(.horizontal, 8).padding(.top, 12).frame(width: 114)
+        .padding(.horizontal, 8).padding(.vertical, 12)
+        }.scrollIndicators(.hidden).frame(width: 114)
     }
 
     private var palette: some View {
         HStack(spacing: 12) {
-            ColorPicker(L10n.tr("Color"), selection: Binding(get: { Color(nsColor: engine.color) }, set: { engine.color = NSColor($0) }), supportsOpacity: true)
+            ColorPicker(L10n.tr("Color"), selection: Binding(get: { Color(nsColor: currentColor) }, set: { setCurrentColor(NSColor($0)) }), supportsOpacity: true)
                 .labelsHidden().help(L10n.tr("Choose a custom color")).frame(width: 42)
             HStack(spacing: 3) {
                 ForEach(0..<14, id: \.self) { column in
@@ -150,7 +167,7 @@ struct EditorView: View {
     }
 
     private func swatch(_ entry: Palette.Entry) -> some View {
-        Button { engine.color = NSColor(Color(red: entry.r, green: entry.g, blue: entry.b)) } label: {
+        Button { setCurrentColor(NSColor(Color(red: entry.r, green: entry.g, blue: entry.b))) } label: {
             Rectangle().fill(Color(red: entry.r, green: entry.g, blue: entry.b))
                 .frame(width: 20, height: 19)
                 .overlay(Rectangle().stroke(.white, lineWidth: 1).padding(1))

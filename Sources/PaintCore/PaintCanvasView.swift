@@ -64,6 +64,7 @@ private final class CanvasBoardView: NSView {
     private var textPoint = CGPoint.zero
     private var editorPixelWidth: CGFloat = 0
     private var tracking: NSTrackingArea?
+    private var hoverPoint: CGPoint?
     private enum DragMode { case none, draw, select, move, resize(Int) }
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
@@ -86,12 +87,13 @@ private final class CanvasBoardView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        window?.acceptsMouseMovedEvents = true
         if window?.firstResponder == nil || window?.firstResponder === window { window?.makeFirstResponder(self) }
     }
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let tracking { removeTrackingArea(tracking) }
-        let area = NSTrackingArea(rect: bounds, options: [.activeInKeyWindow, .mouseMoved, .inVisibleRect, .cursorUpdate], owner: self)
+        let area = NSTrackingArea(rect: bounds, options: [.activeInKeyWindow, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect, .cursorUpdate], owner: self)
         addTrackingArea(area); tracking = area
     }
     override func resetCursorRects() {
@@ -99,6 +101,13 @@ private final class CanvasBoardView: NSView {
     }
     override func cursorUpdate(with event: NSEvent) {
         (engine.tool == .text ? NSCursor.iBeam : engine.tool == .select ? NSCursor.arrow : NSCursor.crosshair).set()
+    }
+    override func mouseEntered(with event: NSEvent) { updateHover(event) }
+    override func mouseMoved(with event: NSEvent) { updateHover(event) }
+    override func mouseExited(with event: NSEvent) { hoverPoint = nil; needsDisplay = true }
+    private func updateHover(_ event: NSEvent) {
+        hoverPoint = convert(event.locationInWindow, from: nil)
+        needsDisplay = true
     }
     override func draw(_ dirtyRect: NSRect) {
         NSGraphicsContext.saveGraphicsState()
@@ -116,7 +125,7 @@ private final class CanvasBoardView: NSView {
             } }
         }
         NSGraphicsContext.current?.imageInterpolation = zoom >= 2 ? .none : .high
-        if let selected = engine.selection, selected.originalRect == selected.rect {
+        if let selected = engine.selection, selected.isCrop || selected.originalRect == selected.rect {
             selected.before.bitmap.nsImage().draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         } else {
             engine.bitmap.nsImage().draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
@@ -125,6 +134,16 @@ private final class CanvasBoardView: NSView {
             }
         }
         if let rect = marquee ?? engine.selectionRect { drawSelection(scaled(rect), handles: marquee == nil) }
+        drawBrushPreview()
+    }
+    private func drawBrushPreview() {
+        guard let point = hoverPoint, bounds.contains(point), window?.isKeyWindow == true,
+              textEditor == nil, [.pencil, .brush, .eraser].contains(engine.tool), case .none = dragging else { return }
+        let diameter = engine.effectiveBrushSize * zoom
+        let circle = NSBezierPath(ovalIn: CGRect(x: point.x - diameter / 2, y: point.y - diameter / 2, width: diameter, height: diameter))
+        // Draw only an overlay: the centerline follows the real raster footprint.
+        NSColor.white.setStroke(); circle.lineWidth = 3; circle.stroke()
+        NSColor.black.setStroke(); circle.lineWidth = 1; circle.stroke()
     }
     private func scaled(_ rect: CGRect) -> CGRect {
         CGRect(x: rect.minX * zoom, y: rect.minY * zoom, width: rect.width * zoom, height: rect.height * zoom)
@@ -152,12 +171,13 @@ private final class CanvasBoardView: NSView {
         return CGPoint(x: p.x / zoom, y: p.y / zoom)
     }
     override func mouseDown(with event: NSEvent) {
+        hoverPoint = nil
         engine.finishEditing()
         window?.makeFirstResponder(self)
         let point = pixelPoint(event)
         dragStart = point
         if engine.tool == .text { engine.commitSelection(); beginText(at: point); return }
-        if engine.tool == .select {
+        if engine.tool == .select || engine.tool == .crop {
             if let rect = engine.selectionRect {
                 initialSelection = rect
                 if let corner = corners(rect).firstIndex(where: { hypot(($0.x-point.x)*zoom, ($0.y-point.y)*zoom) < 9 }) {
@@ -204,11 +224,13 @@ private final class CanvasBoardView: NSView {
         default: break
         }
         dragging = .none
+        updateHover(event)
         window?.invalidateCursorRects(for: self)
     }
     override func keyDown(with event: NSEvent) {
+        guard window?.firstResponder === self, textEditor == nil else { super.keyDown(with: event); return }
         if event.keyCode == 53 { engine.cancelSelection(); return }
-        if event.keyCode == 36 || event.keyCode == 76 { engine.commitSelection(); return }
+        if event.keyCode == 36 || event.keyCode == 76 { engine.confirmSelection(); return }
         if event.keyCode == 51 || event.keyCode == 117 { engine.deleteSelection(); return }
         if let selection = engine.selectionRect, [123,124,125,126].contains(Int(event.keyCode)) {
             let step: CGFloat = event.modifierFlags.contains(.shift) ? 10 : 1
@@ -216,7 +238,8 @@ private final class CanvasBoardView: NSView {
             let dy: CGFloat = event.keyCode == 126 ? -step : event.keyCode == 125 ? step : 0
             engine.moveSelection(to: CGPoint(x: selection.minX+dx, y: selection.minY+dy)); return
         }
-        if !event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers?.uppercased(),
+        if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+           let key = event.charactersIgnoringModifiers?.uppercased(),
            let tool = PaintTool.allCases.first(where: { $0.shortcut == key }) { engine.setTool(tool); return }
         super.keyDown(with: event)
     }
@@ -234,21 +257,23 @@ private final class CanvasBoardView: NSView {
     }
     private func beginText(at point: CGPoint) {
         textPoint = CGPoint(x: max(0, floor(point.x)), y: max(0, floor(point.y)))
-        editorPixelWidth = max(20, min(560, CGFloat(engine.width)-textPoint.x))
+        editorPixelWidth = max(1, min(560, CGFloat(engine.width)-textPoint.x))
         let field = CanvasTextView(frame: CGRect(x: textPoint.x*zoom, y: textPoint.y*zoom,
-            width: editorPixelWidth*zoom, height: max(42, min(200*zoom, bounds.height-textPoint.y*zoom))))
+            width: editorPixelWidth*zoom, height: max(1, min(200*zoom, bounds.height-textPoint.y*zoom))))
         field.isRichText = false; field.importsGraphics = false
         field.isEditable = true; field.isSelectable = true
         field.isVerticallyResizable = true; field.isHorizontallyResizable = false
+        field.minSize = CGSize(width: 1, height: 1)
+        field.maxSize = CGSize(width: editorPixelWidth*zoom, height: max(1, bounds.height-textPoint.y*zoom))
         field.autoresizingMask = []
         field.textContainer?.widthTracksTextView = true
         field.textContainer?.lineFragmentPadding = 0
-        field.textContainerInset = NSSize(width: 0, height: 0)
-        field.font = .systemFont(ofSize: engine.fontSize*zoom)
-        field.textColor = engine.color
-        field.backgroundColor = .white.withAlphaComponent(0.94)
-        field.drawsBackground = true
-        field.insertionPointColor = .black
+        field.textContainerInset = NSSize(width: PaintEngine.textInset*zoom, height: PaintEngine.textInset*zoom)
+        field.font = engine.textAttributes(scale: zoom)[.font] as? NSFont
+        field.textColor = engine.textColor
+        field.typingAttributes = engine.textAttributes(scale: zoom)
+        field.drawsBackground = false
+        field.insertionPointColor = engine.textColor
         field.isAutomaticQuoteSubstitutionEnabled = false
         field.isAutomaticDashSubstitutionEnabled = false
         field.allowsUndo = true
@@ -257,6 +282,7 @@ private final class CanvasBoardView: NSView {
         field.onFinish = { [weak self] commit in self?.finishText(commit: commit) }
         field.setAccessibilityLabel(L10n.tr("Text on canvas"))
         textEditor = field
+        updateTextAppearance()
         addSubview(field); window?.makeFirstResponder(field)
         engine.report("Type your text · ⌘Return to place · Esc to cancel")
     }
@@ -265,11 +291,26 @@ private final class CanvasBoardView: NSView {
         setAccessibilityHelp(L10n.tr("Choose a tool, then draw. Command V pastes an image. Return places a selection. Escape cancels it."))
         guard let field = textEditor else { return }
         field.setAccessibilityLabel(L10n.tr("Text on canvas"))
-        field.font = .systemFont(ofSize: engine.fontSize * zoom)
-        field.textColor = engine.color
+        if !field.hasMarkedText() {
+            let attributes = engine.textAttributes(scale: zoom)
+            let font = attributes[.font] as? NSFont
+            if field.font != font { field.font = font }
+            if field.textColor != engine.textColor { field.textColor = engine.textColor }
+            field.typingAttributes = attributes
+        }
+        field.insertionPointColor = engine.textColor
+        field.textContainerInset = NSSize(width: PaintEngine.textInset*zoom, height: PaintEngine.textInset*zoom)
+        field.previewTextColor = engine.textColor
+        field.previewBorder = engine.textBorder
+        field.previewBackground = engine.textBackgroundEnabled ? engine.textBackgroundColor : nil
+        field.previewScale = zoom
         field.frame.origin = CGPoint(x: textPoint.x*zoom, y: textPoint.y*zoom)
         field.frame.size.width = editorPixelWidth*zoom
+        field.maxSize = CGSize(width: editorPixelWidth*zoom, height: max(1, bounds.height-textPoint.y*zoom))
+        field.frame.size.height = min(field.frame.height, field.maxSize.height)
+        field.needsDisplay = true
     }
+    func textDidChange(_ notification: Notification) { textEditor?.needsDisplay = true }
     private func finishText(commit: Bool) {
         guard let field = textEditor else { return }
         let string = field.string
@@ -300,8 +341,27 @@ private final class CanvasBoardView: NSView {
 
 @MainActor private final class CanvasTextView: NSTextView {
     var onFinish: ((Bool) -> Void)?
+    var previewTextColor = NSColor.black
+    var previewBorder = false
+    var previewBackground: NSColor?
+    var previewScale: CGFloat = 1
+    override func draw(_ dirtyRect: NSRect) {
+        if !string.isEmpty, let layoutManager, let textContainer {
+            layoutManager.ensureLayout(for: textContainer)
+            let used = layoutManager.usedRect(for: textContainer)
+            let box = CGRect(x: 0, y: 0, width: min(bounds.width, ceil(used.maxX / previewScale) * previewScale + textContainerInset.width * 2),
+                             height: min(bounds.height, ceil(used.maxY / previewScale) * previewScale + textContainerInset.height * 2))
+            if let previewBackground { previewBackground.setFill(); box.fill() }
+            if previewBorder {
+                previewTextColor.setStroke()
+                let path = NSBezierPath(rect: box.insetBy(dx: previewScale / 2, dy: previewScale / 2))
+                path.lineWidth = previewScale; path.stroke()
+            }
+        }
+        super.draw(dirtyRect)
+    }
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { onFinish?(false); return }
+        if event.keyCode == 53 && !hasMarkedText() { onFinish?(false); return }
         if (event.keyCode == 36 || event.keyCode == 76) && event.modifierFlags.contains(.command) { onFinish?(true); return }
         super.keyDown(with: event)
     }

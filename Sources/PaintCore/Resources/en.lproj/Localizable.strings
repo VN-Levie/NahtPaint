@@ -146,3 +146,8 @@
 "Light" = "Light";
 "Dark" = "Dark";
 "Only the interface changes. The canvas and image colors stay unchanged." = "Only the interface changes. The canvas and image colors stay unchanged.";
+"Text color" = "Text color";
+"Border" = "Border";
+"Background" = "Background";
+"Background color" = "Background color";
+"Drag to select · Return to crop · Esc to cancel" = "Drag to select · Return to crop · Esc to cancel";
