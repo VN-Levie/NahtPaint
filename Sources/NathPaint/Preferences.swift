@@ -101,8 +101,22 @@ final class AppPreferences: ObservableObject {
 
 struct PreferencesView: View {
     @ObservedObject private var preferences = AppPreferences.shared
+    @ObservedObject private var loginItem = LoginItemController.shared
     var body: some View {
         Form {
+            Toggle(L10n.tr("Launch at login"), isOn: Binding(
+                get: { loginItem.isEnabled }, set: { loginItem.setEnabled($0) }))
+            Text(L10n.tr("Start in the menu bar without opening a window."))
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if loginItem.requiresApproval {
+                Text(L10n.tr("Allow NathPaint in macOS Login Items to finish enabling."))
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Button(L10n.tr("Open Login Items…")) { loginItem.openSystemSettings() }
+            }
+            if let message = loginItem.errorMessage {
+                Text(message).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+            }
+            Divider().padding(.vertical, 4)
             Picker(L10n.tr("Language"), selection: $preferences.language) {
                 ForEach(AppLanguage.allCases) { language in Text(language.nativeName).tag(language) }
             }
@@ -139,5 +153,6 @@ struct PreferencesView: View {
         .padding(24).frame(width: 420)
         .environment(\.locale, preferences.language.locale)
         .preferredColorScheme(preferences.theme.colorScheme)
+        .onAppear { loginItem.refresh() }
     }
 }

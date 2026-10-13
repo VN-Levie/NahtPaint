@@ -2,61 +2,19 @@ import SwiftUI
 import AppKit
 import PaintCore
 import Combine
+import Carbon
 
 @main
-struct NathPaintApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var controller = AppController.shared
-    @ObservedObject private var preferences = AppPreferences.shared
-
-    var body: some Scene {
-        Window("NathPaint", id: "editor") {
-            EditorView(controller: controller, engine: controller.engine)
-                .frame(minWidth: 760, minHeight: 540)
-                .background(WindowReader(controller: controller))
-                .preferredColorScheme(preferences.theme.colorScheme)
-                .environment(\.locale, preferences.language.locale)
-        }
-        .defaultSize(width: 1160, height: 820)
-        .windowStyle(.titleBar)
-        .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button(L10n.tr("Settings…")) { controller.showPreferences() }.keyboardShortcut(",")
-            }
-            CommandGroup(replacing: .newItem) {
-                Button(L10n.tr("New")) { controller.newDocument() }.keyboardShortcut("n")
-                Button(L10n.tr("Open…")) { controller.openDocument() }.keyboardShortcut("o")
-                Button(L10n.tr("New from Clipboard")) { controller.newFromClipboard() }.keyboardShortcut("n", modifiers: [.command, .shift])
-            }
-            CommandGroup(replacing: .saveItem) {
-                Button(L10n.tr("Save")) { controller.save() }.keyboardShortcut("s")
-                Button(L10n.tr("Save As…")) { controller.save(asNew: true) }.keyboardShortcut("s", modifiers: [.command, .shift])
-            }
-            CommandGroup(replacing: .undoRedo) {
-                Button(L10n.tr("Undo")) { controller.undo() }.keyboardShortcut("z")
-                Button(L10n.tr("Redo")) { controller.redo() }.keyboardShortcut("z", modifiers: [.command, .shift])
-            }
-            CommandGroup(replacing: .pasteboard) {
-                Button(L10n.tr("Cut")) { controller.cut() }.keyboardShortcut("x")
-                Button(L10n.tr("Copy")) { controller.copy() }.keyboardShortcut("c")
-                Button(L10n.tr("Paste")) { controller.paste() }.keyboardShortcut("v")
-                Button(L10n.tr("Copy Entire Image")) { controller.copyAll() }.keyboardShortcut("c", modifiers: [.command, .shift])
-                Divider()
-                Button(L10n.tr("Select All")) { controller.selectAll() }.keyboardShortcut("a")
-                Button(L10n.tr("Deselect")) { controller.engine.commitSelection() }.keyboardShortcut("d")
-            }
-            CommandMenu(L10n.tr("Image")) {
-                Button(L10n.tr("Crop to Selection")) { controller.engine.cropToSelection() }
-                    .keyboardShortcut("k").disabled(!controller.engine.hasSelection)
-                Button(L10n.tr("Resize Image…")) { controller.presentResize(scale: true) }
-                Button(L10n.tr("Canvas Size…")) { controller.presentResize(scale: false) }
-            }
-            CommandGroup(after: .toolbar) {
-                Button(L10n.tr("Zoom In")) { controller.zoomIn() }.keyboardShortcut("+")
-                Button(L10n.tr("Zoom Out")) { controller.zoomOut() }.keyboardShortcut("-")
-                Button(L10n.tr("Actual Pixels")) { controller.engine.zoom = 1 }.keyboardShortcut("0")
-            }
-        }
+@MainActor
+enum NathPaintApp {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.setActivationPolicy(.accessory)
+        // AppKit owns the lifecycle so no SwiftUI scene can open a window at login.
+        // The editor and preferences are still SwiftUI views hosted by AppController.
+        withExtendedLifetime(delegate) { app.run() }
     }
 }
 
@@ -65,8 +23,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var editorKeyMonitor: Any?
     private var preferencesObservation: AnyCancellable?
+    private var backgroundLogin = true
+    private var startupReady = false
+    private var initialLoginLaunch: Bool?
+    private var appMenu: AppMenu?
+    private var languageObservation: AnyCancellable?
+    private var localeObservation: AnyCancellable?
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Avoid appearing in the Dock until the launch reason is known.
+        NSApp.setActivationPolicy(.accessory)
+        NSAppleEventManager.shared().setEventHandler(self,
+            andSelector: #selector(handleOpenApplication(_:withReplyEvent:)),
+            forEventClass: kCoreEventClass, andEventID: kAEOpenApplication)
+    }
+
+    @objc func handleOpenApplication(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        // Apple-event descriptors are temporary; persist the value, not the descriptor.
+        initialLoginLaunch = LaunchContext.isLoginLaunch(event)
+        if startupReady { applyInitialOpenEvent() }
+    }
+
+    private func applyInitialOpenEvent() {
+        guard let isLogin = initialLoginLaunch else { return }
+        initialLoginLaunch = nil
+        backgroundLogin = isLogin
+        applyVisibility(AppPreferences.shared.visibility)
+        if !backgroundLogin {
+            AppController.shared.showWindow()
+            DispatchQueue.main.async { AppController.shared.presentInitialCanvasChoiceIfNeeded() }
+        }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        finishLaunching()
+    }
+
+    func finishLaunching() {
+        AppController.shared.onExplicitOpen = { [weak self] in self?.leaveBackgroundLogin() }
         NSApp.appearance = AppPreferences.shared.theme.appearance
         editorKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let controller = AppController.shared
@@ -107,18 +101,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferencesObservation = AppPreferences.shared.$visibility.sink { [weak self] mode in
             DispatchQueue.main.async { self?.applyVisibility(mode) }
         }
-        NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.async { AppController.shared.presentInitialCanvasChoiceIfNeeded() }
+        appMenu = AppMenu(controller: AppController.shared)
+        languageObservation = AppPreferences.shared.$language.dropFirst().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.appMenu?.rebuild() }
+        }
+        localeObservation = NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)
+            .sink { [weak self] _ in
+                DispatchQueue.main.async { self?.appMenu?.rebuild() }
+            }
+        applyVisibility(AppPreferences.shared.visibility)
+        startupReady = true
+        applyInitialOpenEvent()
     }
 
     private func applyVisibility(_ mode: AppVisibility) {
-        NSApp.setActivationPolicy(mode.showsDock ? .regular : .accessory)
-        if mode.showsMenuBar {
+        let effectiveMode = backgroundLogin ? AppVisibility.menuBarOnly : mode
+        NSApp.setActivationPolicy(effectiveMode.showsDock ? .regular : .accessory)
+        if effectiveMode.showsMenuBar {
             if statusItem == nil { createStatusItem() }
         } else if let item = statusItem {
             NSStatusBar.system.removeStatusItem(item)
             statusItem = nil
         }
+    }
+
+    private func leaveBackgroundLogin() {
+        guard backgroundLogin else { return }
+        backgroundLogin = false
+        applyVisibility(AppPreferences.shared.visibility)
+        DispatchQueue.main.async { AppController.shared.presentInitialCanvasChoiceIfNeeded() }
+    }
+
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        LoginItemController.shared.refresh()
     }
 
     private func createStatusItem() {
@@ -192,6 +209,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func quitApp() { NSApp.terminate(nil) }
     func applicationWillTerminate(_ notification: Notification) {
         if let editorKeyMonitor { NSEvent.removeMonitor(editorKeyMonitor) }
+        preferencesObservation = nil
+        languageObservation = nil
+        localeObservation = nil
+        if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -207,14 +228,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ sender: NSApplication, open urls: [URL]) {
         if let url = urls.first { AppController.shared.openURL(url) }
     }
-}
-
-struct WindowReader: NSViewRepresentable {
-    let controller: AppController
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async { if let window = view.window { controller.attach(window) } }
-        return view
-    }
-    func updateNSView(_ nsView: NSView, context: Context) {}
 }

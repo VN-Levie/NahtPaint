@@ -171,3 +171,21 @@
 "Highlighter" = "蛍光ペン";
 
 "Opacity" = "不透明度";
+
+"Launch at login" = "ログイン時に起動";
+"Start in the menu bar without opening a window." = "ウインドウを開かず、メニューバーで起動します。";
+"Allow NathPaint in macOS Login Items to finish enabling." = "macOSのログイン項目でNathPaintを許可してください。";
+"Open Login Items…" = "ログイン項目を開く…";
+"Could not change launch at login: %@" = "ログイン時の起動設定を変更できませんでした：%@";
+"About NathPaint" = "NathPaintについて";
+"Services" = "サービス";
+"Hide NathPaint" = "NathPaintを隠す";
+"Hide Others" = "ほかを隠す";
+"Show All" = "すべてを表示";
+"File" = "ファイル";
+"Close" = "閉じる";
+"Edit" = "編集";
+"View" = "表示";
+"Window" = "ウインドウ";
+"Minimize" = "しまう";
+"Bring All to Front" = "すべてを手前に移動";

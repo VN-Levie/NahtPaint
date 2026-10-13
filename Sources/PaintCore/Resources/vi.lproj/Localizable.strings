@@ -171,3 +171,21 @@
 "Highlighter" = "Bút đánh dấu";
 
 "Opacity" = "Độ đậm";
+
+"Launch at login" = "Khởi động cùng macOS";
+"Start in the menu bar without opening a window." = "Chạy ở menu bar mà không mở cửa sổ.";
+"Allow NathPaint in macOS Login Items to finish enabling." = "Cho phép NathPaint trong Mục đăng nhập của macOS để hoàn tất bật.";
+"Open Login Items…" = "Mở Mục đăng nhập…";
+"Could not change launch at login: %@" = "Không thể đổi thiết lập khởi động cùng macOS: %@";
+"About NathPaint" = "Giới thiệu NathPaint";
+"Services" = "Dịch vụ";
+"Hide NathPaint" = "Ẩn NathPaint";
+"Hide Others" = "Ẩn ứng dụng khác";
+"Show All" = "Hiện tất cả";
+"File" = "Tệp";
+"Close" = "Đóng";
+"Edit" = "Chỉnh sửa";
+"View" = "Hiển thị";
+"Window" = "Cửa sổ";
+"Minimize" = "Thu nhỏ";
+"Bring All to Front" = "Đưa tất cả ra trước";

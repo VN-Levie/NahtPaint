@@ -11,7 +11,8 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
     @Published var fileURL: URL?
     @Published var resizePresented = false
     @Published var scaleOnResize = true
-    weak var window: NSWindow?
+    private(set) var window: NSWindow?
+    var onExplicitOpen: (() -> Void)?
     private var preferencesWindow: NSWindow?
     private var systemLocaleObservation: AnyCancellable?
     private var observation: AnyCancellable?
@@ -61,10 +62,24 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         window?.representedURL = fileURL
     }
     func showWindow() {
+        onExplicitOpen?()
+        if window == nil {
+            let editor = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 1160, height: 820),
+                                  styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                                  backing: .buffered, defer: false)
+            editor.contentViewController = NSHostingController(rootView: EditorRootView(controller: self))
+            editor.contentMinSize = NSSize(width: 760, height: 540)
+            editor.isRestorable = false
+            editor.identifier = NSUserInterfaceItemIdentifier("editor")
+            editor.center()
+            attach(editor)
+        }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
     func showPreferences() {
+        onExplicitOpen?()
+        LoginItemController.shared.refresh()
         NSApp.activate(ignoringOtherApps: true)
         if preferencesWindow == nil {
             let host = NSHostingController(rootView: PreferencesView())
@@ -204,5 +219,17 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
     func zoomOut() { engine.zoom = max(0.05, engine.zoom / 1.25) }
     func showError(_ message: String) {
         let alert = NSAlert(); alert.messageText = message; alert.addButton(withTitle: L10n.tr("OK")); alert.runModal()
+    }
+}
+
+private struct EditorRootView: View {
+    @ObservedObject var controller: AppController
+    @ObservedObject private var preferences = AppPreferences.shared
+
+    var body: some View {
+        EditorView(controller: controller, engine: controller.engine)
+            .frame(minWidth: 760, minHeight: 540)
+            .preferredColorScheme(preferences.theme.colorScheme)
+            .environment(\.locale, preferences.language.locale)
     }
 }

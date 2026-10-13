@@ -9,7 +9,8 @@ let package = Package(
     targets: [
         .target(name: "PaintCore", resources: [.process("Resources")]),
         .executableTarget(name: "NathPaint", dependencies: ["PaintCore"]),
-        .testTarget(name: "PaintCoreTests", dependencies: ["PaintCore"])
+        .testTarget(name: "PaintCoreTests", dependencies: ["PaintCore"]),
+        .testTarget(name: "NathPaintTests", dependencies: ["NathPaint"])
     ],
     swiftLanguageModes: [.v5]
 )

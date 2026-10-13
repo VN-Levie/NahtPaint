@@ -171,3 +171,21 @@
 "Highlighter" = "Highlighter";
 
 "Opacity" = "Opacity";
+
+"Launch at login" = "Launch at login";
+"Start in the menu bar without opening a window." = "Start in the menu bar without opening a window.";
+"Allow NathPaint in macOS Login Items to finish enabling." = "Allow NathPaint in macOS Login Items to finish enabling.";
+"Open Login Items…" = "Open Login Items…";
+"Could not change launch at login: %@" = "Could not change launch at login: %@";
+"About NathPaint" = "About NathPaint";
+"Services" = "Services";
+"Hide NathPaint" = "Hide NathPaint";
+"Hide Others" = "Hide Others";
+"Show All" = "Show All";
+"File" = "File";
+"Close" = "Close";
+"Edit" = "Edit";
+"View" = "View";
+"Window" = "Window";
+"Minimize" = "Minimize";
+"Bring All to Front" = "Bring All to Front";
