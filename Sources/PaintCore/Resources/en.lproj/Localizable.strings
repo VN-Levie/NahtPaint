@@ -151,3 +151,5 @@
 "Background" = "Background";
 "Background color" = "Background color";
 "Drag to select · Return to crop · Esc to cancel" = "Drag to select · Return to crop · Esc to cancel";
+
+"The clipboard does not contain an image or text" = "The clipboard does not contain an image or text";

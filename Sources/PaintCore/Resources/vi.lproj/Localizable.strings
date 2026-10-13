@@ -151,3 +151,5 @@
 "Background" = "Nền";
 "Background color" = "Màu nền";
 "Drag to select · Return to crop · Esc to cancel" = "Kéo để chọn · Return để cắt · Esc để hủy";
+
+"The clipboard does not contain an image or text" = "Bộ nhớ tạm không có ảnh hoặc văn bản";

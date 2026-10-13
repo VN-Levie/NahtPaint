@@ -19,7 +19,7 @@ swift test
 
 ## Quick workflow
 
-1. Copy an image, open NathPaint and press **⌘V**. The first paste sizes a new canvas to the image's actual pixels.
+1. Copy an image, open NathPaint and press **⌘V**. The first paste sizes a new canvas to the image's actual pixels. If the clipboard contains text, **⌘V** creates an editable text box immediately; while editing text, it pastes into that same box.
 2. Draw, type, select, move, resize or crop. Paste more images to build a composition.
 3. Choose **Copy Image** (**⇧⌘C**) to put the entire result on the clipboard, ready to paste into another app. **⌘C** copies the current selection, or the full image if nothing is selected.
 

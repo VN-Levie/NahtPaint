@@ -151,3 +151,5 @@
 "Background" = "背景";
 "Background color" = "背景色";
 "Drag to select · Return to crop · Esc to cancel" = "ドラッグで選択 · Return で切り抜く · Esc でキャンセル";
+
+"The clipboard does not contain an image or text" = "クリップボードに画像やテキストがありません";

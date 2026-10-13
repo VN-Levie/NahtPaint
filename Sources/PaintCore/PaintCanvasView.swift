@@ -80,6 +80,7 @@ private final class CanvasBoardView: NSView {
         setAccessibilityLabel(L10n.tr("Painting canvas"))
         setAccessibilityHelp(L10n.tr("Choose a tool, then draw. Command V pastes an image. Return places a selection. Escape cancels it."))
         engine.finishTextEditing = { [weak self] in self?.finishText(commit: true) }
+        engine.beginPastedTextEditing = { [weak self] text in self?.beginPastedText(text) }
         subscription = engine.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.needsDisplay = true }
         }
@@ -255,7 +256,13 @@ private final class CanvasBoardView: NSView {
         }
         return true
     }
-    private func beginText(at point: CGPoint) {
+    private func beginPastedText(_ text: String) {
+        let visible = visibleRect.intersection(bounds)
+        let region = visible.isNull || visible.isEmpty ? bounds : visible
+        let inset = min(16, min(region.width, region.height) / zoom / 4)
+        beginText(at: CGPoint(x: region.minX / zoom + inset, y: region.minY / zoom + inset), initialText: text)
+    }
+    private func beginText(at point: CGPoint, initialText: String = "") {
         textPoint = CGPoint(x: max(0, floor(point.x)), y: max(0, floor(point.y)))
         editorPixelWidth = max(1, min(560, CGFloat(engine.width)-textPoint.x))
         let field = CanvasTextView(frame: CGRect(x: textPoint.x*zoom, y: textPoint.y*zoom,
@@ -272,6 +279,9 @@ private final class CanvasBoardView: NSView {
         field.font = engine.textAttributes(scale: zoom)[.font] as? NSFont
         field.textColor = engine.textColor
         field.typingAttributes = engine.textAttributes(scale: zoom)
+        if !initialText.isEmpty {
+            field.textStorage?.setAttributedString(NSAttributedString(string: initialText, attributes: engine.textAttributes(scale: zoom)))
+        }
         field.drawsBackground = false
         field.insertionPointColor = engine.textColor
         field.isAutomaticQuoteSubstitutionEnabled = false
@@ -284,6 +294,7 @@ private final class CanvasBoardView: NSView {
         textEditor = field
         updateTextAppearance()
         addSubview(field); window?.makeFirstResponder(field)
+        field.setSelectedRange(NSRange(location: (initialText as NSString).length, length: 0))
         engine.report("Type your text · ⌘Return to place · Esc to cancel")
     }
     func updateTextAppearance() {

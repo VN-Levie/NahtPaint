@@ -89,6 +89,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     var bitmap: Bitmap
     var selection: Selection?
     var finishTextEditing: (() -> Void)?
+    var beginPastedTextEditing: ((String) -> Void)?
     private var finishingText = false
     private var undoStack: [Snapshot] = []
     private var redoStack: [Snapshot] = []
@@ -325,9 +326,21 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         catch { status = error.localizedDescription }
     }
     public func pasteFromClipboard() {
-        finishEditing()
-        guard let image = NSImage(pasteboard: .general) else { status = L10n.tr("The clipboard does not contain an image"); return }
-        do { try pasteImage(image) } catch { status = error.localizedDescription }
+        paste(from: .general)
+    }
+    /// A named pasteboard allows clipboard behavior to be tested without altering the user's clipboard.
+    func paste(from board: NSPasteboard) {
+        if let image = NSImage(pasteboard: board) {
+            do { try pasteImage(image) } catch { status = error.localizedDescription }
+            return
+        }
+        let plain = board.string(forType: .string)
+        let rich = board.data(forType: .rtf).flatMap { NSAttributedString(rtf: $0, documentAttributes: nil)?.string }
+        guard let text = [plain, rich].compactMap({ $0 }).first(where: { !$0.isEmpty }) else {
+            status = L10n.tr("The clipboard does not contain an image or text"); return
+        }
+        finishEditing(); commitSelection(); setTool(.text)
+        beginPastedTextEditing?(text)
     }
     func report(_ message: String) { status = L10n.tr(message) }
 

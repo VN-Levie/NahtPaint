@@ -401,6 +401,76 @@ final class PaintEngineTests: XCTestCase {
         }
     }
 
+    func testClipboardTextStartsEditingPreservesCanvasAndCommitsOnFinish() async {
+        await MainActor.run {
+            _ = NSApplication.shared
+            let board = NSPasteboard(name: .init("NathPaint.Tests.\(UUID().uuidString)"))
+            defer { board.releaseGlobally() }
+            let text = "B/P/C\nTiếng Việt"
+            board.setString(text, forType: .string)
+            let engine = PaintEngine(width: 96, height: 72)
+            let original = engine.bitmap.pixels
+            var pending: String?
+            engine.beginPastedTextEditing = { pending = $0 }
+            engine.finishTextEditing = {
+                guard let string = pending else { return }
+                pending = nil
+                engine.insertText(string, at: CGPoint(x: 4, y: 4), width: 88)
+            }
+
+            engine.paste(from: board)
+            XCTAssertEqual(pending, text, "Multiline clipboard text must reach the inline editor unchanged")
+            XCTAssertEqual(engine.tool, .text)
+            XCTAssertFalse(engine.isDirty, "An editable text draft is committed when editing finishes")
+            XCTAssertEqual(engine.bitmap.pixels, original, "Starting text must not replace the underlying image")
+            engine.finishEditing()
+            XCTAssertNil(pending)
+            XCTAssertTrue(engine.isDirty)
+            XCTAssertNotEqual(engine.bitmap.pixels, original)
+            engine.undo()
+            XCTAssertEqual(engine.bitmap.pixels, original)
+            XCTAssertFalse(engine.isDirty)
+            engine.finishTextEditing = nil
+        }
+    }
+
+    func testClipboardImageTakesPriorityOverText() async throws {
+        try await MainActor.run {
+            let board = NSPasteboard(name: .init("NathPaint.Tests.\(UUID().uuidString)"))
+            defer { board.releaseGlobally() }
+            board.setData(try XCTUnwrap(Self.image(width: 2, height: 1, pixels: [.red, .blue]).tiffRepresentation), forType: .tiff)
+            board.setString("Image description", forType: .string)
+            let engine = PaintEngine()
+            var pastedText: String?
+            engine.beginPastedTextEditing = { pastedText = $0 }
+            engine.paste(from: board)
+            XCTAssertNil(pastedText)
+            XCTAssertTrue(engine.hasSelection)
+            XCTAssertEqual(engine.tool, .select)
+            XCTAssertEqual(engine.width, 2)
+            XCTAssertEqual(engine.height, 1)
+            try Self.assertPixel(Self.bitmap(engine.exportPNG()), x: 0, y: 0, equals: .red)
+            try Self.assertPixel(Self.bitmap(engine.exportPNG()), x: 1, y: 0, equals: .blue)
+        }
+    }
+
+    func testClipboardRTFFallsBackToPlainEditableText() async throws {
+        try await MainActor.run {
+            let board = NSPasteboard(name: .init("NathPaint.Tests.\(UUID().uuidString)"))
+            defer { board.releaseGlobally() }
+            let attributed = NSAttributedString(string: "Rich text\nSecond line", attributes: [.font: NSFont.systemFont(ofSize: 18)])
+            let rtf = try XCTUnwrap(attributed.rtf(from: NSRange(location: 0, length: attributed.length), documentAttributes: [:]))
+            board.setData(rtf, forType: .rtf)
+            let engine = PaintEngine()
+            var pastedText: String?
+            engine.beginPastedTextEditing = { pastedText = $0 }
+            engine.paste(from: board)
+            XCTAssertEqual(pastedText, attributed.string)
+            XCTAssertEqual(engine.tool, .text)
+            XCTAssertFalse(engine.isDirty)
+        }
+    }
+
     private struct Pixel: Equatable {
         let red: Int
         let green: Int
