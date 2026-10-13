@@ -1,0 +1,10 @@
+Generation mode: built-in image_gen
+Use case: logo-brand
+Asset type: distinctive macOS Dock app icon for NathPaint, a quick friendly bitmap editor.
+Primary request: Design a new original identity: a highly readable uppercase N graphic monogram constructed from one continuous thick paint stroke. It should feel like a deliberately designed custom symbol, not a typeset letter.
+Subject: Deep cobalt blue N paint-stroke monogram, with a small warm orange brush-tip accent integrated into the stroke ending. No separate paintbrush object.
+Style/medium: Bold minimal iconic geometry, confident silhouette, restrained subtle tactile paint character and gentle polished depth. Classic playful desktop utility spirit.
+Composition/framing: Square 1024x1024 image. One centered ivory rounded-square macOS tile with generous approximately 10% outer transparent padding. Large central custom N with balanced internal padding, crisp legibility at 32x32 pixels.
+Color palette: Cobalt blue, warm orange, ivory; no extra colors. Subtle shading only.
+Scene/backdrop: Actual transparent background outside the rounded-square tile, clean transparent alpha with no backdrop, no vignette.
+Constraints: A distinctive graphic N monogram only, no wordmark, no other letters, no text, no watermark, no palette object, no conventional brush-and-palette composition, no Windows or Microsoft logos, no tiny decorative details.

@@ -1,0 +1,10 @@
+Generation mode: built-in image_gen edit
+Use case: precise-object-edit
+Asset type: macOS menu bar template icon matching NathPaint's attached finished brand icon.
+Input images: Image 1 is the edit target and exact silhouette reference.
+Primary request: Remove the entire ivory rounded-square tile, every background pixel and all shadows. Isolate only the blue-and-orange continuous N paint-stroke shape. Turn this exact N silhouette including its distinctive upper-right curved brush-tip into a single solid pure-black flat shape.
+Style/medium: Crisp black monochrome template icon, no interior shading, no highlights, no texture, no gradients, no stroke outlines.
+Composition/framing: Centered recognizable N silhouette with about 8 percent transparent padding on all sides; square image.
+Invariants: Preserve the original distinctive overall N silhouette, proportions, continuous thick stroke, softly rounded left terminal, diagonal and curved upper-right tip. The orange tip becomes black and joins the N as one continuous silhouette.
+Scene/backdrop: Actual transparency everywhere except the black N silhouette. The former tile must be completely absent, including inside the open negative spaces.
+Constraints: Pure black opaque foreground, antialiased outer edges, transparent background. No ivory tile, no white background, no gray rectangle, no shadows, no palette, no extra objects, no wordmark, no additional text.
