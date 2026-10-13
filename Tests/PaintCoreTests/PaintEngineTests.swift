@@ -401,8 +401,8 @@ final class PaintEngineTests: XCTestCase {
         }
     }
 
-    func testClipboardTextStartsEditingPreservesCanvasAndCommitsOnFinish() async {
-        await MainActor.run {
+    func testClipboardTextStartsEditingPreservesCanvasAndCommitsOnFinish() async throws {
+        try await MainActor.run {
             _ = NSApplication.shared
             let board = NSPasteboard(name: .init("NathPaint.Tests.\(UUID().uuidString)"))
             defer { board.releaseGlobally() }
@@ -410,6 +410,7 @@ final class PaintEngineTests: XCTestCase {
             board.setString(text, forType: .string)
             let engine = PaintEngine(width: 96, height: 72)
             let original = engine.bitmap.pixels
+            let originalExport = try engine.exportPNG()
             var pending: String?
             engine.beginPastedTextEditing = { pending = $0 }
             engine.finishTextEditing = {
@@ -426,9 +427,10 @@ final class PaintEngineTests: XCTestCase {
             engine.finishEditing()
             XCTAssertNil(pending)
             XCTAssertTrue(engine.isDirty)
-            XCTAssertNotEqual(engine.bitmap.pixels, original)
+            XCTAssertNotEqual(try engine.exportPNG(), originalExport)
             engine.undo()
             XCTAssertEqual(engine.bitmap.pixels, original)
+            XCTAssertEqual(try engine.exportPNG(), originalExport)
             XCTAssertFalse(engine.isDirty)
             engine.finishTextEditing = nil
         }

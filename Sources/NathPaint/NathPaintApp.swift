@@ -63,7 +63,6 @@ struct NathPaintApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private var pendingClick: DispatchWorkItem?
     private var editorKeyMonitor: Any?
     private var preferencesObservation: AnyCancellable?
 
@@ -72,15 +71,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editorKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let controller = AppController.shared
             guard NSApp.keyWindow === controller.window,
-                  event.modifierFlags.contains(.command),
-                  !event.modifierFlags.contains(.control),
                   !event.modifierFlags.contains(.option) else { return event }
+            let command = event.modifierFlags.contains(.command)
+            let control = event.modifierFlags.contains(.control)
+            if !command && !control && [51, 117].contains(event.keyCode) {
+                return controller.deleteCanvasSelection() ? nil : event
+            }
+            let controlSelectAll = control && !command &&
+                (event.charactersIgnoringModifiers?.lowercased() == "a" || event.keyCode == 0)
+            guard (command && !control) || controlSelectAll else { return event }
             // Route editor shortcuts before SwiftUI/AppKit responder handoff. Some
             // input sources produce non-Latin characters while Command is held.
             let hardwareKeys: [UInt16: String] = [0: "a", 8: "c", 9: "v", 7: "x", 6: "z", 16: "y", 2: "d", 45: "n", 31: "o", 1: "s", 40: "k", 43: ","]
             let supported = Set(["a", "c", "v", "x", "z", "y", "d", "n", "o", "s", "k", ","])
             let characters = event.charactersIgnoringModifiers?.lowercased() ?? ""
-            let key = supported.contains(characters) ? characters : (hardwareKeys[event.keyCode] ?? characters)
+            let key = controlSelectAll ? "a" : (supported.contains(characters) ? characters : (hardwareKeys[event.keyCode] ?? characters))
             let shift = event.modifierFlags.contains(.shift)
             switch key {
             case "a": controller.selectAll()
@@ -103,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async { self?.applyVisibility(mode) }
         }
         NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async { AppController.shared.presentInitialCanvasChoiceIfNeeded() }
     }
 
     private func applyVisibility(_ mode: AppVisibility) {
@@ -110,7 +116,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if mode.showsMenuBar {
             if statusItem == nil { createStatusItem() }
         } else if let item = statusItem {
-            pendingClick?.cancel()
             NSStatusBar.system.removeStatusItem(item)
             statusItem = nil
         }
@@ -133,19 +138,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func statusClicked() {
-        pendingClick?.cancel()
         guard let event = NSApp.currentEvent else { return }
         if event.type == .rightMouseUp { showMenu(); return }
         switch AppPreferences.shared.quickOpen {
         case .singleClick: AppController.shared.showWindow(); return
         case .menuOnly: showMenu(); return
-        case .doubleClick: break
         }
-        if event.clickCount >= 2 { AppController.shared.showWindow(); return }
-        // Wait for the user's system double-click interval before presenting the menu.
-        let work = DispatchWorkItem { [weak self] in self?.showMenu() }
-        pendingClick = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
     }
 
     private func showMenu() {
@@ -186,7 +184,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppPreferences.shared.visibility = AppVisibility.allCases[sender.tag]
     }
     @objc private func changeQuickOpen(_ sender: NSMenuItem) {
-        pendingClick?.cancel()
         AppPreferences.shared.quickOpen = QuickOpenMode.allCases[sender.tag]
     }
     @objc private func openPreferences() { AppController.shared.showPreferences() }
@@ -198,7 +195,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        AppController.shared.confirmDiscard() ? .terminateNow : .terminateCancel
+        if AppPreferences.shared.clearCanvasOnCloseOrQuit {
+            AppController.shared.clearCanvas()
+            return .terminateNow
+        }
+        return AppController.shared.confirmDiscard() ? .terminateNow : .terminateCancel
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         AppController.shared.showWindow(); return false

@@ -16,9 +16,15 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
     private var systemLocaleObservation: AnyCancellable?
     private var observation: AnyCancellable?
     private var languageObservation: AnyCancellable?
+    private var pasteOptionsObservation: AnyCancellable?
 
     override init() {
         super.init()
+        pasteOptionsObservation = Publishers.CombineLatest(AppPreferences.shared.$imagePasteMode, AppPreferences.shared.$fitViewAfterPasting)
+            .sink { [weak self] mode, fitView in
+                self?.engine.imagePasteMode = mode
+                self?.engine.fitViewAfterPasting = fitView
+            }
         languageObservation = AppPreferences.shared.$language.dropFirst().sink { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -74,12 +80,35 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         // Keep the document and window alive while the app lives in the menu bar.
         engine.finishEditing()
+        if AppPreferences.shared.clearCanvasOnCloseOrQuit { clearCanvas() }
         sender.orderOut(nil)
         return false
+    }
+    func clearCanvas() {
+        engine.newCanvas(width: 960, height: 640)
+        engine.zoom = 1
+        fileURL = nil
+        syncTitle()
+    }
+    func presentInitialCanvasChoiceIfNeeded() {
+        guard AppPreferences.shared.needsInitialCanvasChoice else { return }
+        showWindow()
+        let alert = NSAlert()
+        alert.messageText = L10n.tr("What should happen when you close NathPaint?")
+        alert.informativeText = L10n.tr("Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings.")
+        alert.addButton(withTitle: L10n.tr("Keep canvas"))
+        alert.addButton(withTitle: L10n.tr("Clear automatically"))
+        AppPreferences.shared.clearCanvasOnCloseOrQuit = alert.runModal() == .alertSecondButtonReturn
     }
     private var textEditor: NSTextView? {
         guard let text = NSApp.keyWindow?.firstResponder as? NSTextView, text.isEditable else { return nil }
         return text
+    }
+    func deleteCanvasSelection() -> Bool {
+        // Leave native text/IME deletion to NSTextView; only consume canvas deletion.
+        guard textEditor == nil, engine.hasSelection else { return false }
+        engine.deleteSelection()
+        return true
     }
     func copy() { if let text = textEditor { text.copy(nil) } else { engine.copyToClipboard() } }
     func copyAll() { engine.finishEditing(); engine.copyToClipboard(entireCanvas: true) }
@@ -172,7 +201,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         engine.finishEditing(); scaleOnResize = scale; resizePresented = true
     }
     func zoomIn() { engine.zoom = min(8, engine.zoom * 1.25) }
-    func zoomOut() { engine.zoom = max(0.125, engine.zoom / 1.25) }
+    func zoomOut() { engine.zoom = max(0.05, engine.zoom / 1.25) }
     func showError(_ message: String) {
         let alert = NSAlert(); alert.messageText = message; alert.addButton(withTitle: L10n.tr("OK")); alert.runModal()
     }

@@ -74,7 +74,7 @@ struct EditorView: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 12) {
                 Text(engine.tool.title).font(.system(size: 12, weight: .semibold)).lineLimit(2).frame(width: 92, alignment: .leading)
-                if engine.tool == .text {
+                if engine.tool == .text || engine.hasSelectedText {
                     Picker(L10n.tr("Text size"), selection: $engine.fontSize) {
                         ForEach([12, 16, 20, 24, 32, 48, 64, 96], id: \.self) { size in Text("\(size) pt").tag(CGFloat(size)) }
                     }.labelsHidden().frame(width: 78).help(L10n.tr("Text size"))
@@ -105,9 +105,9 @@ struct EditorView: View {
         .padding(.horizontal, 12).frame(height: 35)
     }
 
-    private var currentColor: NSColor { engine.tool == .text ? engine.textColor : engine.color }
+    private var currentColor: NSColor { (engine.tool == .text || engine.hasSelectedText) ? engine.textColor : engine.color }
     private func setCurrentColor(_ color: NSColor) {
-        if engine.tool == .text { engine.textColor = color } else { engine.color = color }
+        if engine.tool == .text || engine.hasSelectedText { engine.textColor = color } else { engine.color = color }
     }
 
     private var toolbox: some View {

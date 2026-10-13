@@ -61,11 +61,14 @@ private final class CanvasBoardView: NSView {
     private var marquee: CGRect?
     private var dragging: DragMode = .none
     private var textEditor: CanvasTextView?
+    private var editingObjectID: UUID?
     private var textPoint = CGPoint.zero
     private var editorPixelWidth: CGFloat = 0
+    private var editorScale = CGSize(width: 1, height: 1)
+    private var initialTextPosition = CGPoint.zero
     private var tracking: NSTrackingArea?
     private var hoverPoint: CGPoint?
-    private enum DragMode { case none, draw, select, move, resize(Int) }
+    private enum DragMode { case none, draw, select, move, moveText, resize(Int) }
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     override var isOpaque: Bool { true }
@@ -81,11 +84,17 @@ private final class CanvasBoardView: NSView {
         setAccessibilityHelp(L10n.tr("Choose a tool, then draw. Command V pastes an image. Return places a selection. Escape cancels it."))
         engine.finishTextEditing = { [weak self] in self?.finishText(commit: true) }
         engine.beginPastedTextEditing = { [weak self] text in self?.beginPastedText(text) }
+        engine.fitViewAfterImagePaste = { [weak self] in self?.fitPastedImageInViewport() }
         subscription = engine.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.needsDisplay = true }
         }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    private func fitPastedImageInViewport() {
+        guard let viewport = enclosingScrollView?.contentSize, viewport.width > 0, viewport.height > 0 else { return }
+        engine.zoom = max(0.05, min(1, (viewport.width - 48) / CGFloat(engine.width),
+                                   (viewport.height - 48) / CGFloat(engine.height)))
+    }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.acceptsMouseMovedEvents = true
@@ -126,15 +135,11 @@ private final class CanvasBoardView: NSView {
             } }
         }
         NSGraphicsContext.current?.imageInterpolation = zoom >= 2 ? .none : .high
-        if let selected = engine.selection, selected.isCrop || selected.originalRect == selected.rect {
-            selected.before.bitmap.nsImage().draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-        } else {
-            engine.bitmap.nsImage().draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-            if let selected = engine.selection {
-                selected.image.nsImage().draw(in: scaled(selected.rect), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-            }
+        engine.displayBitmap(excludingTextID: engine.editingTextID).nsImage()
+            .draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        if let rect = marquee ?? engine.selectionRect, textEditor == nil || engine.selection != nil {
+            drawSelection(scaled(rect), handles: marquee == nil && engine.selection != nil)
         }
-        if let rect = marquee ?? engine.selectionRect { drawSelection(scaled(rect), handles: marquee == nil) }
         drawBrushPreview()
     }
     private func drawBrushPreview() {
@@ -177,15 +182,31 @@ private final class CanvasBoardView: NSView {
         window?.makeFirstResponder(self)
         let point = pixelPoint(event)
         dragStart = point
-        if engine.tool == .text { engine.commitSelection(); beginText(at: point); return }
         if engine.tool == .select || engine.tool == .crop {
-            if let rect = engine.selectionRect {
+            // Pixel-selection handles remain available even above a text object.
+            if let rect = engine.selection?.rect {
                 initialSelection = rect
                 if let corner = corners(rect).firstIndex(where: { hypot(($0.x-point.x)*zoom, ($0.y-point.y)*zoom) < 9 }) {
                     dragging = .resize(corner); return
                 }
                 if rect.contains(point) { dragging = .move; NSCursor.closedHand.set(); return }
             }
+        }
+        if engine.tool == .text || engine.tool == .select,
+           let object = engine.textObject(at: point) {
+            if event.clickCount >= 2 {
+                beginEditingText(id: object.id)
+            } else {
+                engine.selectText(id: object.id)
+                initialTextPosition = object.position
+                engine.beginTextMove()
+                dragging = .moveText
+            }
+            needsDisplay = true
+            return
+        }
+        if engine.tool == .text { engine.commitSelection(); beginText(at: point); return }
+        if engine.tool == .select || engine.tool == .crop {
             engine.commitSelection()
             marquee = CGRect(origin: point, size: .zero); dragging = .select; needsDisplay = true
         } else {
@@ -203,6 +224,10 @@ private final class CanvasBoardView: NSView {
             needsDisplay = true
         case .move:
             engine.moveSelection(to: CGPoint(x: initialSelection.minX + point.x-dragStart.x, y: initialSelection.minY + point.y-dragStart.y))
+        case .moveText:
+            NSCursor.closedHand.set()
+            engine.moveSelectedText(to: CGPoint(x: initialTextPosition.x + point.x-dragStart.x,
+                                               y: initialTextPosition.y + point.y-dragStart.y))
         case .resize(let corner):
             let fixed = corners(initialSelection)[(corner+2)%4]
             var moving = point
@@ -219,6 +244,7 @@ private final class CanvasBoardView: NSView {
     override func mouseUp(with event: NSEvent) {
         switch dragging {
         case .draw: engine.endStroke()
+        case .moveText: engine.endTextMove()
         case .select:
             if let marquee, marquee.width >= 1, marquee.height >= 1 { engine.select(rect: marquee) }
             marquee = nil; needsDisplay = true
@@ -237,7 +263,9 @@ private final class CanvasBoardView: NSView {
             let step: CGFloat = event.modifierFlags.contains(.shift) ? 10 : 1
             let dx: CGFloat = event.keyCode == 123 ? -step : event.keyCode == 124 ? step : 0
             let dy: CGFloat = event.keyCode == 126 ? -step : event.keyCode == 125 ? step : 0
-            engine.moveSelection(to: CGPoint(x: selection.minX+dx, y: selection.minY+dy)); return
+            if engine.selectedTextID != nil { engine.nudgeSelectedText(dx: dx, dy: dy) }
+            else { engine.moveSelection(to: CGPoint(x: selection.minX+dx, y: selection.minY+dy)) }
+            return
         }
         if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
            let key = event.charactersIgnoringModifiers?.uppercased(),
@@ -262,18 +290,27 @@ private final class CanvasBoardView: NSView {
         let inset = min(16, min(region.width, region.height) / zoom / 4)
         beginText(at: CGPoint(x: region.minX / zoom + inset, y: region.minY / zoom + inset), initialText: text)
     }
-    private func beginText(at point: CGPoint, initialText: String = "") {
-        textPoint = CGPoint(x: max(0, floor(point.x)), y: max(0, floor(point.y)))
-        editorPixelWidth = max(1, min(560, CGFloat(engine.width)-textPoint.x))
+    private func beginEditingText(id: UUID) {
+        guard let object = engine.beginTextEditing(id: id) else { return }
+        beginText(at: object.position, initialText: object.text, object: object)
+    }
+    private func beginText(at point: CGPoint, initialText: String = "", object: PaintTextObject? = nil) {
+        editingObjectID = object?.id
+        textPoint = object?.position ?? CGPoint(x: max(0, floor(point.x)), y: max(0, floor(point.y)))
+        editorPixelWidth = object?.layoutWidth ?? max(1, min(560, CGFloat(engine.width)-textPoint.x))
+        editorScale = CGSize(width: max(0.001, object?.scaleX ?? 1), height: max(0.001, object?.scaleY ?? 1))
         let field = CanvasTextView(frame: CGRect(x: textPoint.x*zoom, y: textPoint.y*zoom,
             width: editorPixelWidth*zoom, height: max(1, min(200*zoom, bounds.height-textPoint.y*zoom))))
         field.isRichText = false; field.importsGraphics = false
         field.isEditable = true; field.isSelectable = true
-        field.isVerticallyResizable = true; field.isHorizontallyResizable = false
+        // Own the geometry explicitly so resizing the document can scale text
+        // independently on each axis without changing its original line wrapping.
+        field.isVerticallyResizable = false; field.isHorizontallyResizable = false
         field.minSize = CGSize(width: 1, height: 1)
         field.maxSize = CGSize(width: editorPixelWidth*zoom, height: max(1, bounds.height-textPoint.y*zoom))
         field.autoresizingMask = []
-        field.textContainer?.widthTracksTextView = true
+        field.textContainer?.widthTracksTextView = false
+        field.textContainer?.heightTracksTextView = false
         field.textContainer?.lineFragmentPadding = 0
         field.textContainerInset = NSSize(width: PaintEngine.textInset*zoom, height: PaintEngine.textInset*zoom)
         field.font = engine.textAttributes(scale: zoom)[.font] as? NSFont
@@ -315,22 +352,50 @@ private final class CanvasBoardView: NSView {
         field.previewBorder = engine.textBorder
         field.previewBackground = engine.textBackgroundEnabled ? engine.textBackgroundColor : nil
         field.previewScale = zoom
-        field.frame.origin = CGPoint(x: textPoint.x*zoom, y: textPoint.y*zoom)
-        field.frame.size.width = editorPixelWidth*zoom
-        field.maxSize = CGSize(width: editorPixelWidth*zoom, height: max(1, bounds.height-textPoint.y*zoom))
-        field.frame.size.height = min(field.frame.height, field.maxSize.height)
+        updateTextGeometry(field)
         field.needsDisplay = true
     }
-    func textDidChange(_ notification: Notification) { textEditor?.needsDisplay = true }
+    private func updateTextGeometry(_ field: CanvasTextView) {
+        let width = editorPixelWidth * zoom
+        let inset = PaintEngine.textInset * zoom
+        field.textContainer?.containerSize = CGSize(width: max(1, width - inset * 2), height: .greatestFiniteMagnitude)
+        let contentHeight: CGFloat
+        if let layout = field.layoutManager, let container = field.textContainer {
+            layout.ensureLayout(for: container)
+            let usedHeight = layout.usedRect(for: container).maxY
+            // Include the caret line after a trailing newline as well as glyphs.
+            let caretHeight = layout.extraLineFragmentRect.maxY
+            contentHeight = max(usedHeight, caretHeight) + inset * 2
+        } else { contentHeight = 40 * zoom }
+        let availableHeight = max(1, (CGFloat(engine.height) - textPoint.y) / editorScale.height) * zoom
+        let minimumHeight = max(1, (field.font?.ascender ?? 24 * zoom) - (field.font?.descender ?? 0) + inset * 2)
+        let naturalSize = CGSize(width: width, height: min(availableHeight, max(minimumHeight, ceil(contentHeight / zoom) * zoom)))
+        field.maxSize = CGSize(width: width, height: availableHeight)
+        field.frame = CGRect(x: textPoint.x * zoom, y: textPoint.y * zoom,
+                             width: naturalSize.width * editorScale.width, height: naturalSize.height * editorScale.height)
+        field.bounds = CGRect(origin: .zero, size: naturalSize)
+    }
+    func textDidChange(_ notification: Notification) {
+        guard let field = textEditor else { return }
+        updateTextGeometry(field)
+        field.needsDisplay = true
+    }
     private func finishText(commit: Bool) {
         guard let field = textEditor else { return }
         let string = field.string
+        let objectID = editingObjectID
         textEditor = nil
+        editingObjectID = nil
         let wasEditing = window?.firstResponder === field
         if wasEditing { window?.makeFirstResponder(self) }
         field.removeFromSuperview()
-        if commit { engine.insertText(string, at: textPoint, width: editorPixelWidth) }
-        else { engine.report("Text cancelled") }
+        if commit {
+            if let objectID { engine.updateText(id: objectID, text: string, layoutWidth: editorPixelWidth) }
+            else { engine.insertText(string, at: textPoint, width: editorPixelWidth) }
+        } else {
+            engine.cancelTextEditing()
+            engine.report("Text cancelled")
+        }
         needsDisplay = true
     }
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { .copy }

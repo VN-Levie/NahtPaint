@@ -153,3 +153,17 @@
 "Drag to select · Return to crop · Esc to cancel" = "ドラッグで選択 · Return で切り抜く · Esc でキャンセル";
 
 "The clipboard does not contain an image or text" = "クリップボードに画像やテキストがありません";
+"Pasting large images" = "大きな画像のペースト";
+"Automatic" = "自動";
+"Fit to canvas" = "キャンバスに合わせる";
+"Expand canvas" = "キャンバスを広げる";
+"Fit view after pasting" = "ペースト後に全体を表示";
+"Automatic fits moderately larger images and expands the canvas for much larger images." = "自動では、少し大きな画像はキャンバスに合わせて縮小し、大幅に大きな画像はキャンバスを広げます。";
+"New empty canvases match the first pasted image." = "新しい空のキャンバスは、最初にペーストした画像のサイズに合わせます。";
+"Text selected · Drag to move · Double-click to edit" = "テキストを選択中 · ドラッグで移動 · ダブルクリックで編集";
+"Clear canvas on close or quit" = "ウインドウを閉じるときや終了時にキャンバスを消去";
+"Discard unsaved changes without asking." = "確認せずに未保存の変更を破棄します。";
+"What should happen when you close NathPaint?" = "NathPaint を閉じるとき、キャンバスをどうしますか？";
+"Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "キャンバスを保持：ウインドウを閉じても作業内容を保持し、終了時に保存を確認します。自動消去：ウインドウを閉じるときや終了時に未保存の作業を破棄します。この設定は後から変更できます。";
+"Keep canvas" = "キャンバスを保持";
+"Clear automatically" = "自動消去";

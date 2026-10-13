@@ -153,3 +153,17 @@
 "Drag to select · Return to crop · Esc to cancel" = "Kéo để chọn · Return để cắt · Esc để hủy";
 
 "The clipboard does not contain an image or text" = "Bộ nhớ tạm không có ảnh hoặc văn bản";
+"Pasting large images" = "Dán ảnh lớn";
+"Automatic" = "Tự động";
+"Fit to canvas" = "Thu vừa khung vẽ";
+"Expand canvas" = "Mở rộng khung vẽ";
+"Fit view after pasting" = "Hiển thị vừa cửa sổ sau khi dán";
+"Automatic fits moderately larger images and expands the canvas for much larger images." = "Tự động thu vừa ảnh lớn hơn vừa phải và mở rộng khung vẽ cho ảnh lớn hơn nhiều.";
+"New empty canvases match the first pasted image." = "Khung vẽ mới còn trống sẽ có kích thước bằng ảnh đầu tiên được dán.";
+"Text selected · Drag to move · Double-click to edit" = "Đã chọn chữ · Kéo để di chuyển · Nhấp đúp để sửa";
+"Clear canvas on close or quit" = "Xóa khung vẽ khi đóng cửa sổ hoặc thoát";
+"Discard unsaved changes without asking." = "Bỏ thay đổi chưa lưu mà không hỏi lại.";
+"What should happen when you close NathPaint?" = "Bạn muốn xử lý khung vẽ thế nào khi đóng NathPaint?";
+"Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "Giữ khung vẽ: đóng cửa sổ sẽ giữ lại nội dung; thoát ứng dụng sẽ hỏi lưu. Tự động xóa: đóng cửa sổ hoặc thoát sẽ bỏ nội dung chưa lưu. Bạn có thể đổi lựa chọn này trong Cài đặt.";
+"Keep canvas" = "Giữ khung vẽ";
+"Clear automatically" = "Tự động xóa";

@@ -153,3 +153,17 @@
 "Drag to select · Return to crop · Esc to cancel" = "拖动选择 · Return 裁剪 · Esc 取消";
 
 "The clipboard does not contain an image or text" = "剪贴板中没有图片或文本";
+"Pasting large images" = "粘贴大图像";
+"Automatic" = "自动";
+"Fit to canvas" = "适应画布";
+"Expand canvas" = "扩展画布";
+"Fit view after pasting" = "粘贴后缩放至窗口大小";
+"Automatic fits moderately larger images and expands the canvas for much larger images." = "自动模式会缩小略大的图像以适应画布，并为大得多的图像扩展画布。";
+"New empty canvases match the first pasted image." = "新的空白画布将匹配第一张粘贴图像的大小。";
+"Text selected · Drag to move · Double-click to edit" = "已选择文字 · 拖动移动 · 双击编辑";
+"Clear canvas on close or quit" = "关闭窗口或退出时清空画布";
+"Discard unsaved changes without asking." = "不再询问，直接丢弃未保存的更改。";
+"What should happen when you close NathPaint?" = "关闭 NathPaint 时，您希望如何处理画布？";
+"Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "保留画布：关闭窗口时保留内容，退出时询问是否保存。自动清空：关闭窗口或退出时丢弃未保存的内容。您可以在设置中更改此选项。";
+"Keep canvas" = "保留画布";
+"Clear automatically" = "自动清空";

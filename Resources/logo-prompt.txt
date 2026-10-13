@@ -8,3 +8,17 @@ Composition/framing: Square 1024x1024 image. One centered ivory rounded-square m
 Color palette: Cobalt blue, warm orange, ivory; no extra colors. Subtle shading only.
 Scene/backdrop: Actual transparent background outside the rounded-square tile, clean transparent alpha with no backdrop, no vignette.
 Constraints: A distinctive graphic N monogram only, no wordmark, no other letters, no text, no watermark, no palette object, no conventional brush-and-palette composition, no Windows or Microsoft logos, no tiny decorative details.
+
+
+Foreground isolation for native icon packaging
+Generation mode: built-in image_gen edit
+Use case: background-extraction
+Asset type: foreground artwork for a native layered macOS app icon.
+Input images: Image 1 is the existing approved NathPaint app logo, the edit target.
+Primary request: Remove only the entire ivory rounded-square tile and its shadows. Isolate the exact existing cobalt-blue continuous N paint-stroke mark with its small orange upper-right paint tip onto genuinely transparent background.
+Invariants: Preserve the recognizable exact N shape, stroke proportions, blue paint texture, polished highlights, orange tip shape and position, color and appearance. Keep the N itself as the sole foreground element. Do not redesign the symbol, do not add any plate or outline.
+Composition/framing: Square canvas with the N centered and approximately 10 percent transparent outer padding. Keep transparent negative spaces between the N strokes.
+Scene/backdrop: Actual transparent background and clean antialiased alpha everywhere except the colored N. No tile, no ivory pixels around the silhouette, no background, no backdrop, no ground shadow.
+Constraints: This is background removal only. No new objects, no wordmark, no extra letters, no black monochrome conversion, no rounded-square tile, no border.
+
+Native packaging: Resources/NathPaint.icon uses the isolated NathPaint-mark.png as its sole foreground layer above a full-bleed warm ivory native fill. Icon Composer applies the macOS mask once, avoiding a baked rounded tile inside the system plate. The original NathPaint-logo.png and MenuBarIcon.png remain unchanged.

@@ -17,18 +17,16 @@ public enum AppVisibility: String, CaseIterable, Identifiable {
 }
 
 enum QuickOpenMode: String, CaseIterable, Identifiable {
-    case doubleClick, singleClick, menuOnly
+    case menuOnly, singleClick
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .doubleClick: return L10n.tr("Double-click")
         case .singleClick: return L10n.tr("Single-click")
         case .menuOnly: return L10n.tr("Menu only")
         }
     }
     var hint: String {
         switch self {
-        case .doubleClick: return L10n.tr("Click for the menu. Double-click to open NathPaint.")
         case .singleClick: return L10n.tr("Click to open NathPaint. Right-click for the menu.")
         case .menuOnly: return L10n.tr("Click for the menu, then choose Open NathPaint.")
         }
@@ -72,10 +70,31 @@ final class AppPreferences: ObservableObject {
     @Published var quickOpen: QuickOpenMode {
         didSet { UserDefaults.standard.set(quickOpen.rawValue, forKey: "quickOpen") }
     }
+    @Published var imagePasteMode: ImagePasteMode {
+        didSet { UserDefaults.standard.set(imagePasteMode.rawValue, forKey: "imagePasteMode") }
+    }
+    @Published var fitViewAfterPasting: Bool {
+        didSet { UserDefaults.standard.set(fitViewAfterPasting, forKey: "fitViewAfterPasting") }
+    }
+    @Published var clearCanvasOnCloseOrQuit: Bool {
+        didSet {
+            UserDefaults.standard.set(clearCanvasOnCloseOrQuit, forKey: "clearCanvasOnCloseOrQuit")
+            UserDefaults.standard.set(true, forKey: "didChooseCanvasCloseBehavior")
+        }
+    }
+    var needsInitialCanvasChoice: Bool {
+        !UserDefaults.standard.bool(forKey: "didChooseCanvasCloseBehavior")
+    }
     private init() {
+        clearCanvasOnCloseOrQuit = UserDefaults.standard.bool(forKey: "clearCanvasOnCloseOrQuit")
+        imagePasteMode = ImagePasteMode(rawValue: UserDefaults.standard.string(forKey: "imagePasteMode") ?? "") ?? .automatic
+        fitViewAfterPasting = UserDefaults.standard.object(forKey: "fitViewAfterPasting") as? Bool ?? true
         theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .system
         language = AppLanguage.current
-        quickOpen = QuickOpenMode(rawValue: UserDefaults.standard.string(forKey: "quickOpen") ?? "") ?? .doubleClick
+        quickOpen = QuickOpenMode(rawValue: UserDefaults.standard.string(forKey: "quickOpen") ?? "") ?? .menuOnly
+        if UserDefaults.standard.string(forKey: "quickOpen") == "doubleClick" {
+            UserDefaults.standard.set(QuickOpenMode.menuOnly.rawValue, forKey: "quickOpen")
+        }
         visibility = AppVisibility(rawValue: UserDefaults.standard.string(forKey: "appVisibility") ?? "") ?? .both
     }
 }
@@ -90,6 +109,21 @@ struct PreferencesView: View {
             Picker(L10n.tr("Appearance"), selection: $preferences.theme) {
                 ForEach(AppTheme.allCases) { theme in Text(theme.title).tag(theme) }
             }.pickerStyle(.segmented)
+            Divider().padding(.vertical, 4)
+            Picker(L10n.tr("Pasting large images"), selection: $preferences.imagePasteMode) {
+                ForEach(ImagePasteMode.allCases) { mode in Text(mode.title).tag(mode) }
+            }
+            if preferences.imagePasteMode == .automatic {
+                Text(L10n.tr("Automatic fits moderately larger images and expands the canvas for much larger images."))
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Toggle(L10n.tr("Fit view after pasting"), isOn: $preferences.fitViewAfterPasting)
+            Text(L10n.tr("New empty canvases match the first pasted image."))
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Divider().padding(.vertical, 4)
+            Toggle(L10n.tr("Clear canvas on close or quit"), isOn: $preferences.clearCanvasOnCloseOrQuit)
+            Text(L10n.tr("Discard unsaved changes without asking."))
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Divider().padding(.vertical, 4)
             Picker(L10n.tr("Show NathPaint in"), selection: $preferences.visibility) {
                 ForEach(AppVisibility.allCases) { mode in Text(mode.title).tag(mode) }

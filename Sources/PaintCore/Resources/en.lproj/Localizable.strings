@@ -153,3 +153,17 @@
 "Drag to select · Return to crop · Esc to cancel" = "Drag to select · Return to crop · Esc to cancel";
 
 "The clipboard does not contain an image or text" = "The clipboard does not contain an image or text";
+"Pasting large images" = "Pasting large images";
+"Automatic" = "Automatic";
+"Fit to canvas" = "Fit to canvas";
+"Expand canvas" = "Expand canvas";
+"Fit view after pasting" = "Fit view after pasting";
+"Automatic fits moderately larger images and expands the canvas for much larger images." = "Automatic fits moderately larger images and expands the canvas for much larger images.";
+"New empty canvases match the first pasted image." = "New empty canvases match the first pasted image.";
+"Text selected · Drag to move · Double-click to edit" = "Text selected · Drag to move · Double-click to edit";
+"Clear canvas on close or quit" = "Clear canvas on close or quit";
+"Discard unsaved changes without asking." = "Discard unsaved changes without asking.";
+"What should happen when you close NathPaint?" = "What should happen when you close NathPaint?";
+"Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings.";
+"Keep canvas" = "Keep canvas";
+"Clear automatically" = "Clear automatically";
