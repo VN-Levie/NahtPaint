@@ -167,3 +167,7 @@
 "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings.";
 "Keep canvas" = "Keep canvas";
 "Clear automatically" = "Clear automatically";
+
+"Highlighter" = "Highlighter";
+
+"Opacity" = "Opacity";

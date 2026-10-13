@@ -167,3 +167,7 @@
 "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "Giữ khung vẽ: đóng cửa sổ sẽ giữ lại nội dung; thoát ứng dụng sẽ hỏi lưu. Tự động xóa: đóng cửa sổ hoặc thoát sẽ bỏ nội dung chưa lưu. Bạn có thể đổi lựa chọn này trong Cài đặt.";
 "Keep canvas" = "Giữ khung vẽ";
 "Clear automatically" = "Tự động xóa";
+
+"Highlighter" = "Bút đánh dấu";
+
+"Opacity" = "Độ đậm";

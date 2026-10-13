@@ -91,8 +91,14 @@ struct EditorView: View {
                         .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
                 } else {
                     Text(L10n.tr("Size"))
-                    Slider(value: $engine.brushSize, in: 1...40, step: 1).frame(width: 100)
+                    Slider(value: $engine.brushSize, in: 1...(engine.tool == .highlighter ? 80 : 40), step: 1).frame(width: 100)
                     Text("\(Int(engine.brushSize)) px").monospacedDigit().frame(width: 36, alignment: .leading)
+                    if engine.tool == .highlighter {
+                        Text(L10n.tr("Opacity"))
+                        Slider(value: $engine.highlighterOpacity, in: 0.1...0.6, step: 0.05).frame(width: 90)
+                        Text("\(Int((engine.highlighterOpacity * 100).rounded()))%")
+                            .monospacedDigit().frame(width: 32, alignment: .leading)
+                    }
                     if engine.tool == .rectangle || engine.tool == .ellipse {
                         Toggle(L10n.tr("Fill"), isOn: $engine.fillShapes).toggleStyle(.checkbox)
                     }
@@ -105,9 +111,14 @@ struct EditorView: View {
         .padding(.horizontal, 12).frame(height: 35)
     }
 
-    private var currentColor: NSColor { (engine.tool == .text || engine.hasSelectedText) ? engine.textColor : engine.color }
+    private var currentColor: NSColor {
+        if engine.tool == .text || engine.hasSelectedText { return engine.textColor }
+        return engine.tool == .highlighter ? engine.highlighterColor : engine.color
+    }
     private func setCurrentColor(_ color: NSColor) {
-        if engine.tool == .text || engine.hasSelectedText { engine.textColor = color } else { engine.color = color }
+        if engine.tool == .text || engine.hasSelectedText { engine.textColor = color }
+        else if engine.tool == .highlighter { engine.highlighterColor = color }
+        else { engine.color = color }
     }
 
     private var toolbox: some View {

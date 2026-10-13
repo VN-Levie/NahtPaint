@@ -144,12 +144,15 @@ private final class CanvasBoardView: NSView {
     }
     private func drawBrushPreview() {
         guard let point = hoverPoint, bounds.contains(point), window?.isKeyWindow == true,
-              textEditor == nil, [.pencil, .brush, .eraser].contains(engine.tool), case .none = dragging else { return }
+              textEditor == nil, [.pencil, .brush, .highlighter, .eraser].contains(engine.tool), case .none = dragging else { return }
         let diameter = engine.effectiveBrushSize * zoom
-        let circle = NSBezierPath(ovalIn: CGRect(x: point.x - diameter / 2, y: point.y - diameter / 2, width: diameter, height: diameter))
+        let square = engine.tool == .pencil || engine.tool == .highlighter
+        let nibCenter = square ? SquareTipRasterizer.center(CGPoint(x: point.x / zoom, y: point.y / zoom), size: engine.effectiveBrushSize) : CGPoint(x: point.x / zoom, y: point.y / zoom)
+        let rect = CGRect(x: nibCenter.x * zoom - diameter / 2, y: nibCenter.y * zoom - diameter / 2, width: diameter, height: diameter)
+        let outline = square ? NSBezierPath(rect: rect) : NSBezierPath(ovalIn: rect)
         // Draw only an overlay: the centerline follows the real raster footprint.
-        NSColor.white.setStroke(); circle.lineWidth = 3; circle.stroke()
-        NSColor.black.setStroke(); circle.lineWidth = 1; circle.stroke()
+        NSColor.white.setStroke(); outline.lineWidth = 3; outline.stroke()
+        NSColor.black.setStroke(); outline.lineWidth = 1; outline.stroke()
     }
     private func scaled(_ rect: CGRect) -> CGRect {
         CGRect(x: rect.minX * zoom, y: rect.minY * zoom, width: rect.width * zoom, height: rect.height * zoom)

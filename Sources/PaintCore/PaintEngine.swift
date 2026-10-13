@@ -14,7 +14,7 @@ public enum ImagePasteMode: String, CaseIterable, Identifiable {
 }
 
 public enum PaintTool: String, CaseIterable, Identifiable {
-    case select, crop, pencil, brush, eraser, fill, eyedropper, text, line, rectangle, ellipse
+    case select, crop, pencil, brush, highlighter, eraser, fill, eyedropper, text, line, rectangle, ellipse
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -22,6 +22,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         case .crop: return L10n.tr("Crop")
         case .pencil: return L10n.tr("Pencil")
         case .brush: return L10n.tr("Brush")
+        case .highlighter: return L10n.tr("Highlighter")
         case .eraser: return L10n.tr("Eraser")
         case .fill: return L10n.tr("Fill")
         case .eyedropper: return L10n.tr("Pick color")
@@ -37,6 +38,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         case .crop: return "crop"
         case .pencil: return "pencil"
         case .brush: return "paintbrush.pointed"
+        case .highlighter: return "highlighter"
         case .eraser: return "eraser"
         case .fill: return "drop.fill"
         case .eyedropper: return "eyedropper"
@@ -52,6 +54,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         case .crop: return "C"
         case .pencil: return "P"
         case .brush: return "B"
+        case .highlighter: return "H"
         case .eraser: return "E"
         case .fill: return "G"
         case .eyedropper: return "I"
@@ -65,14 +68,31 @@ public enum PaintTool: String, CaseIterable, Identifiable {
 
 @MainActor public final class PaintEngine: ObservableObject {
     @Published public var tool: PaintTool = .pencil {
-        didSet { if oldValue != tool { finishEditing(); commitSelection(); status = tool.title } }
+        didSet {
+            guard oldValue != tool else { return }
+            finishEditing(); commitSelection()
+            if let key = widthKey(for: tool) {
+                updatingStrokeWidth = true
+                brushSize = rememberedWidths[key] ?? 3
+                updatingStrokeWidth = false
+            }
+            status = tool.title
+        }
     }
     @Published public var color: NSColor = .black
+    @Published public var highlighterColor = NSColor(srgbRed: 1, green: 0.88, blue: 0.2, alpha: 1)
+    @Published public var highlighterOpacity: CGFloat = 0.35
     @Published public var textColor: NSColor = .black { didSet { applySelectedTextStyle() } }
     @Published public var textBorder = false { didSet { applySelectedTextStyle() } }
     @Published public var textBackgroundEnabled = false { didSet { applySelectedTextStyle() } }
     @Published public var textBackgroundColor: NSColor = .white { didSet { applySelectedTextStyle() } }
-    @Published public var brushSize: CGFloat = 3
+    @Published public var brushSize: CGFloat = 3 {
+        didSet {
+            if !updatingStrokeWidth, brushSize.isFinite, let key = widthKey(for: tool) {
+                rememberedWidths[key] = max(1, min(128, brushSize))
+            }
+        }
+    }
     @Published public var fontSize: CGFloat = 24 { didSet { applySelectedTextStyle() } }
     @Published public var fillShapes = false
     @Published public var zoom: CGFloat = 1
@@ -121,6 +141,11 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     private var savedRevision = 0
     private var pristine = true
     private var strokeBefore: Snapshot?
+    private var strokeTool: PaintTool?
+    private var strokeSize: CGFloat = 3
+    private var highlighterStroke: HighlighterStroke?
+    private var rememberedWidths: [PaintTool: CGFloat] = [.pencil: 3, .brush: 10, .eraser: 16, .highlighter: 24, .line: 3]
+    private var updatingStrokeWidth = false
     private var strokeStart: CGPoint = .zero
     private var lastPoint: CGPoint = .zero
     private var textMoveBefore: Snapshot?
@@ -138,6 +163,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         finishingText = true
         // A drag is one document operation even if Save/Undo arrives before mouse-up.
         endTextMove()
+        endStroke()
         finishTextEditing?()
         finishingText = false
     }
@@ -508,21 +534,26 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     func report(_ message: String) { status = L10n.tr(message) }
 
     func beginStroke(at point: CGPoint) {
+        guard point.x.isFinite, point.y.isFinite else { return }
         finishEditing(); commitSelection()
         strokeBefore = snapshot(); strokeStart = point; lastPoint = point
+        strokeTool = tool; strokeSize = effectiveBrushSize
+        if tool == .highlighter {
+            highlighterStroke = HighlighterStroke(original: bitmap, size: strokeSize, color: highlighterColor, opacity: highlighterOpacity)
+        }
         if tool == .fill {
             floodFill(at: point); endStroke(); return
         }
         if tool == .eyedropper {
             if let picked = displayBitmap().color(at: point) { color = picked; status = L10n.tr("Color picked") }
-            strokeBefore = nil; return
+            strokeBefore = nil; strokeTool = nil; return
         }
-        if [.pencil, .brush, .eraser].contains(tool) { drawLine(from: point, to: point) }
+        if [.pencil, .brush, .highlighter, .eraser].contains(tool) { drawLine(from: point, to: point) }
         refresh()
     }
     func continueStroke(to point: CGPoint, constrained: Bool = false) {
-        guard let before = strokeBefore else { return }
-        if [.pencil, .brush, .eraser].contains(tool) { drawLine(from: lastPoint, to: point); lastPoint = point }
+        guard point.x.isFinite, point.y.isFinite, let before = strokeBefore else { return }
+        if [.pencil, .brush, .highlighter, .eraser].contains(tool) { drawLine(from: lastPoint, to: point); lastPoint = point }
         else {
             bitmap = before.bitmap
             var end = point
@@ -552,15 +583,34 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     }
     func endStroke() {
         guard let before = strokeBefore else { return }
-        strokeBefore = nil
-        if bitmap.pixels != before.bitmap.pixels { record(before); status = tool.title }
+        let completedTool = strokeTool ?? tool
+        strokeBefore = nil; strokeTool = nil; highlighterStroke = nil
+        if bitmap.pixels != before.bitmap.pixels { record(before); status = completedTool.title }
+    }
+    private func widthKey(for tool: PaintTool) -> PaintTool? {
+        switch tool {
+        case .pencil, .brush, .highlighter, .eraser: return tool
+        case .line, .rectangle, .ellipse: return .line
+        default: return nil
+        }
     }
     private var drawingColor: NSColor { (tool == .eraser ? NSColor.white : color).usingColorSpace(.sRGB) ?? .black }
-    var effectiveBrushSize: CGFloat { max(1, min(128, brushSize)) }
+    var effectiveBrushSize: CGFloat {
+        let size = brushSize.isFinite ? max(1, min(128, brushSize)) : 3
+        return tool == .pencil || tool == .highlighter ? size.rounded() : size
+    }
     private func drawLine(from start: CGPoint, to end: CGPoint) {
-        let size = effectiveBrushSize
+        let activeTool = strokeTool ?? tool
+        let size = strokeBefore == nil ? effectiveBrushSize : strokeSize
+        if activeTool == .highlighter {
+            highlighterStroke?.draw(on: &bitmap, from: start, to: end); return
+        }
+        if activeTool == .pencil {
+            SquareTipRasterizer.pencil(on: &bitmap, from: start, to: end, size: size, color: drawingColor); return
+        }
         let cg = drawingColor.cgColor
         bitmap.withContext { context in
+            context.setShouldAntialias(true)
             context.setStrokeColor(cg); context.setFillColor(cg); context.setLineWidth(size)
             context.setLineCap(.round); context.setLineJoin(.round)
             if start == end { context.fillEllipse(in: CGRect(x: start.x - size / 2, y: start.y - size / 2, width: size, height: size)) }

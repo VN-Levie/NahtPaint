@@ -167,3 +167,7 @@
 "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "キャンバスを保持：ウインドウを閉じても作業内容を保持し、終了時に保存を確認します。自動消去：ウインドウを閉じるときや終了時に未保存の作業を破棄します。この設定は後から変更できます。";
 "Keep canvas" = "キャンバスを保持";
 "Clear automatically" = "自動消去";
+
+"Highlighter" = "蛍光ペン";
+
+"Opacity" = "不透明度";

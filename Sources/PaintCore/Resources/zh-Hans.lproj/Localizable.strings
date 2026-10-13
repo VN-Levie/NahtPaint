@@ -167,3 +167,7 @@
 "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "保留画布：关闭窗口时保留内容，退出时询问是否保存。自动清空：关闭窗口或退出时丢弃未保存的内容。您可以在设置中更改此选项。";
 "Keep canvas" = "保留画布";
 "Clear automatically" = "自动清空";
+
+"Highlighter" = "荧光笔";
+
+"Opacity" = "不透明度";

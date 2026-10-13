@@ -30,8 +30,10 @@ Use **Return** to place a floating selection and **Escape** to cancel it. Text i
 ## Tools and files
 
 - Rectangular selection with drag, corner resizing, arrow-key nudging, cut, copy, delete and crop.
-- Pencil, brush, eraser, flood fill, eyedropper, text, line, rectangle and ellipse. Pencil/brush/eraser show the actual stroke footprint under the pointer, scaled with zoom.
-- Tool shortcuts: **P** pencil, **B** brush, **E** eraser, **C** crop, **M** select, **T** text, **G** fill, **I** eyedropper, **L** line, **R** rectangle, **O** ellipse. Tool letters are inactive while entering text.
+- Pencil, brush, highlighter, eraser, flood fill, eyedropper, text, line, rectangle and ellipse. Freehand tools show their actual tip shape and stroke footprint under the pointer, scaled with zoom.
+- Pencil uses a crisp square pixel tip; Brush uses a smooth round tip. Pencil, Brush, Eraser and Highlighter remember independent widths (defaults 3, 10, 16 and 24 pixels).
+- Highlighter defaults to warm yellow at 35% opacity and uses multiply blending to keep dark raster text readable. A continuous stroke does not darken at joins or self-crossings; a separate stroke can deepen the highlight. Color and opacity are adjustable. Editable text remains in the foreground.
+- Tool shortcuts: **P** pencil, **B** brush, **H** highlighter, **E** eraser, **C** crop, **M** select, **T** text, **G** fill, **I** eyedropper, **L** line, **R** rectangle, **O** ellipse. Tool letters are inactive while entering text.
 - Crop tool: drag a crop area and press Return to apply; Escape cancels.
 - Inline text with independent color, size, optional border and optional background color. The bottom palette changes text color when the Text tool is active.
 - Preset and custom colors, brush width, text size, shape fill and zoom.
