@@ -2,6 +2,16 @@
 
 A small native macOS paint app inspired by the direct, familiar workflow of Windows XP Paint. SwiftUI supplies the interface; AppKit and Core Graphics handle the pixel canvas, text editing, clipboard and menu bar. No third-party runtime dependencies.
 
+![NathPaint editor with one editable text box containing ten languages](docs/screenshots/editor.jpg)
+
+## Download and install
+
+Download **NathPaint-0.2.1-macOS-universal.zip** from the [latest GitHub Release](https://github.com/VN-Levie/NathPaint/releases/latest). The app supports **Apple Silicon and Intel Macs running macOS 14 or later**. No Xcode or additional runtime installation is needed.
+
+1. Sign in to a GitHub account with access to this private repository.
+2. Download the app ZIP under **Assets**, extract it, and drag **NathPaint.app** into **Applications**.
+3. Open NathPaint. This build is ad-hoc signed and is not Apple-notarized. If macOS blocks it, use **System Settings → Privacy & Security → Open Anyway** after trying to open the app. See [Apple's instructions](https://support.apple.com/en-au/102445).
+
 ## Build and run
 
 Requires macOS 14 or later. Build with Xcode 26 or later (Swift 6 and Icon Composer asset compilation). The package uses Swift 5 language mode.
@@ -41,6 +51,8 @@ Use **Return** to place a floating selection and **Escape** to cancel it. Text i
 - Image-file drag and drop, Open, Save and Save As. PNG retains alpha; JPEG composites transparency onto white.
 - Bounded undo/redo history. Quit/New/Open prompt for unsaved changes.
 
+![Highlighter controls and a yellow stroke over readable black text](docs/screenshots/highlighter.jpg)
+
 The first version edits one document at a time. The raster drawing has editable text objects above it. PNG/JPEG files are flattened images; reopening them cannot recover editable text. There is no editable project file format yet. Changes stay local. By default, closing the window keeps the current document in memory; choose **Quit NathPaint** to exit. The first launch asks whether to keep that behavior or clear the canvas automatically on close/quit. There is no recovery after a forced termination, so save important work.
 
 ## Menu bar and preferences
@@ -55,6 +67,8 @@ The first version edits one document at a time. The raster drawing has editable 
 - **Appearance:** System (default), Light, or Dark. Only the interface changes; a new canvas stays white and existing image pixels retain their colors.
 - **Language:** English (default), Vietnamese, Simplified Chinese, Japanese, or System. System follows the supported preferred macOS language and falls back to English.
 
+<img src="docs/screenshots/settings.jpg" alt="NathPaint settings for language, appearance, smart paste, canvas behavior, Dock and menu bar" width="420">
+
 Preferences persist across launches. There is no double-click detection or delayed menu. In Dock-only mode the Dock icon reopens the hidden editor.
 
 ## Artwork
@@ -67,4 +81,4 @@ The app logo was created with the built-in ImageGen tool and packaged as a macOS
 
 ## Distribution
 
-`build-app.sh` creates a local ad-hoc signed app for the current Mac architecture. This is suitable for local use and development; a public release would additionally need a Developer ID signature and Apple notarization. Build output and local preferences are excluded from Git.
+`build-app.sh` creates an ad-hoc signed app for the current Mac architecture. The v0.2.1 release ZIP contains a Universal build with both `arm64` and `x86_64` executables and all app resources. It is ad-hoc signed, without a Developer ID signature or Apple notarization, so a new Mac may require the first-open approval described above. The current functional tests ran on Apple Silicon; the Intel build has been compiled and checked but has not been run on an Intel Mac. Build output and local preferences are excluded from Git.
