@@ -27,8 +27,8 @@ enum QuickOpenMode: String, CaseIterable, Identifiable {
     }
     var hint: String {
         switch self {
-        case .singleClick: return L10n.tr("Click to open NathPaint. Right-click for the menu.")
-        case .menuOnly: return L10n.tr("Click for the menu, then choose Open NathPaint.")
+        case .singleClick: return L10n.tr("Click to open NahtPaint. Right-click for the menu.")
+        case .menuOnly: return L10n.tr("Click for the menu, then choose Open NahtPaint.")
         }
     }
 }
@@ -109,7 +109,7 @@ struct PreferencesView: View {
             Text(L10n.tr("Start in the menu bar without opening a window."))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if loginItem.requiresApproval {
-                Text(L10n.tr("Allow NathPaint in macOS Login Items to finish enabling."))
+                Text(L10n.tr("Allow NahtPaint in macOS Login Items to finish enabling."))
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Button(L10n.tr("Open Login Items…")) { loginItem.openSystemSettings() }
             }
@@ -139,7 +139,7 @@ struct PreferencesView: View {
             Text(L10n.tr("Discard unsaved changes without asking."))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Divider().padding(.vertical, 4)
-            Picker(L10n.tr("Show NathPaint in"), selection: $preferences.visibility) {
+            Picker(L10n.tr("Show NahtPaint in"), selection: $preferences.visibility) {
                 ForEach(AppVisibility.allCases) { mode in Text(mode.title).tag(mode) }
             }.pickerStyle(.radioGroup)
             if preferences.visibility.showsMenuBar {

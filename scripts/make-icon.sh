@@ -2,8 +2,8 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE="${PROJECT_DIR}/Resources/NathPaint-logo.png"
-ICONSET="${PROJECT_DIR}/build/icon-NathPaint.iconset"
+SOURCE="${PROJECT_DIR}/Resources/NahtPaint-logo.png"
+ICONSET="${PROJECT_DIR}/build/icon-NahtPaint.iconset"
 OUTPUT="${PROJECT_DIR}/Resources/AppIcon.icns"
 
 if [[ ! -f "${SOURCE}" ]]; then

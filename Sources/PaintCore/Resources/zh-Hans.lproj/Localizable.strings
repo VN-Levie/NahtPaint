@@ -1,4 +1,4 @@
-// NathPaint interface translations. English strings are localization keys.
+// NahtPaint interface translations. English strings are localization keys.
 "New" = "新建";
 "Open" = "打开";
 "Open…" = "打开…";
@@ -23,22 +23,22 @@
 "Zoom In" = "放大";
 "Zoom Out" = "缩小";
 "Actual Pixels" = "实际像素";
-"Open NathPaint" = "打开 NathPaint";
+"Open NahtPaint" = "打开 NahtPaint";
 "New from Clipboard" = "从剪贴板新建";
 "Show App In" = "显示位置";
 "Quick Open" = "快速打开";
-"Quit NathPaint" = "退出 NathPaint";
+"Quit NahtPaint" = "退出 NahtPaint";
 "Dock + menu bar" = "Dock 和菜单栏";
 "Dock only" = "仅 Dock";
 "Menu bar only" = "仅菜单栏";
 "Double-click" = "双击";
 "Single-click" = "单击";
 "Menu only" = "仅显示菜单";
-"Click for the menu. Double-click to open NathPaint." = "单击显示菜单，双击打开 NathPaint。";
-"Click to open NathPaint. Right-click for the menu." = "单击打开 NathPaint，右键单击显示菜单。";
-"Click for the menu, then choose Open NathPaint." = "单击显示菜单，然后选择“打开 NathPaint”。";
+"Click for the menu. Double-click to open NahtPaint." = "单击显示菜单，双击打开 NahtPaint。";
+"Click to open NahtPaint. Right-click for the menu." = "单击打开 NahtPaint，右键单击显示菜单。";
+"Click for the menu, then choose Open NahtPaint." = "单击显示菜单，然后选择“打开 NahtPaint”。";
 "Language" = "语言";
-"Show NathPaint in" = "NathPaint 显示位置";
+"Show NahtPaint in" = "NahtPaint 显示位置";
 "Settings…" = "设置…";
 "Untitled" = "未命名";
 "Save changes to %@?" = "要保存对 %@ 的更改吗？";
@@ -163,7 +163,7 @@
 "Text selected · Drag to move · Double-click to edit" = "已选择文字 · 拖动移动 · 双击编辑";
 "Clear canvas on close or quit" = "关闭窗口或退出时清空画布";
 "Discard unsaved changes without asking." = "不再询问，直接丢弃未保存的更改。";
-"What should happen when you close NathPaint?" = "关闭 NathPaint 时，您希望如何处理画布？";
+"What should happen when you close NahtPaint?" = "关闭 NahtPaint 时，您希望如何处理画布？";
 "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "保留画布：关闭窗口时保留内容，退出时询问是否保存。自动清空：关闭窗口或退出时丢弃未保存的内容。您可以在设置中更改此选项。";
 "Keep canvas" = "保留画布";
 "Clear automatically" = "自动清空";
@@ -174,12 +174,12 @@
 
 "Launch at login" = "登录时启动";
 "Start in the menu bar without opening a window." = "仅在菜单栏启动，不打开窗口。";
-"Allow NathPaint in macOS Login Items to finish enabling." = "请在 macOS 登录项中允许 NathPaint 以完成启用。";
+"Allow NahtPaint in macOS Login Items to finish enabling." = "请在 macOS 登录项中允许 NahtPaint 以完成启用。";
 "Open Login Items…" = "打开登录项…";
 "Could not change launch at login: %@" = "无法更改登录时启动设置：%@";
-"About NathPaint" = "关于 NathPaint";
+"About NahtPaint" = "关于 NahtPaint";
 "Services" = "服务";
-"Hide NathPaint" = "隐藏 NathPaint";
+"Hide NahtPaint" = "隐藏 NahtPaint";
 "Hide Others" = "隐藏其他";
 "Show All" = "全部显示";
 "File" = "文件";
@@ -189,3 +189,9 @@
 "Window" = "窗口";
 "Minimize" = "最小化";
 "Bring All to Front" = "全部前置";
+
+// Selection transforms
+"Flip Horizontal" = "水平翻转";
+"Flip Vertical" = "垂直翻转";
+"Selection flipped horizontally" = "已水平翻转选区";
+"Selection flipped vertically" = "已垂直翻转选区";

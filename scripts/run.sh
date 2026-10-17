@@ -2,4 +2,4 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ./scripts/build-app.sh
-open build/NathPaint.app
+open build/NahtPaint.app

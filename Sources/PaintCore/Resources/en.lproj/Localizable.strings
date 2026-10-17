@@ -1,4 +1,4 @@
-// NathPaint interface translations. English strings are localization keys.
+// NahtPaint interface translations. English strings are localization keys.
 "New" = "New";
 "Open" = "Open";
 "Open…" = "Open…";
@@ -23,22 +23,22 @@
 "Zoom In" = "Zoom In";
 "Zoom Out" = "Zoom Out";
 "Actual Pixels" = "Actual Pixels";
-"Open NathPaint" = "Open NathPaint";
+"Open NahtPaint" = "Open NahtPaint";
 "New from Clipboard" = "New from Clipboard";
 "Show App In" = "Show App In";
 "Quick Open" = "Quick Open";
-"Quit NathPaint" = "Quit NathPaint";
+"Quit NahtPaint" = "Quit NahtPaint";
 "Dock + menu bar" = "Dock + menu bar";
 "Dock only" = "Dock only";
 "Menu bar only" = "Menu bar only";
 "Double-click" = "Double-click";
 "Single-click" = "Single-click";
 "Menu only" = "Menu only";
-"Click for the menu. Double-click to open NathPaint." = "Click for the menu. Double-click to open NathPaint.";
-"Click to open NathPaint. Right-click for the menu." = "Click to open NathPaint. Right-click for the menu.";
-"Click for the menu, then choose Open NathPaint." = "Click for the menu, then choose Open NathPaint.";
+"Click for the menu. Double-click to open NahtPaint." = "Click for the menu. Double-click to open NahtPaint.";
+"Click to open NahtPaint. Right-click for the menu." = "Click to open NahtPaint. Right-click for the menu.";
+"Click for the menu, then choose Open NahtPaint." = "Click for the menu, then choose Open NahtPaint.";
 "Language" = "Language";
-"Show NathPaint in" = "Show NathPaint in";
+"Show NahtPaint in" = "Show NahtPaint in";
 "Settings…" = "Settings…";
 "Untitled" = "Untitled";
 "Save changes to %@?" = "Save changes to %@?";
@@ -163,7 +163,7 @@
 "Text selected · Drag to move · Double-click to edit" = "Text selected · Drag to move · Double-click to edit";
 "Clear canvas on close or quit" = "Clear canvas on close or quit";
 "Discard unsaved changes without asking." = "Discard unsaved changes without asking.";
-"What should happen when you close NathPaint?" = "What should happen when you close NathPaint?";
+"What should happen when you close NahtPaint?" = "What should happen when you close NahtPaint?";
 "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings.";
 "Keep canvas" = "Keep canvas";
 "Clear automatically" = "Clear automatically";
@@ -174,12 +174,12 @@
 
 "Launch at login" = "Launch at login";
 "Start in the menu bar without opening a window." = "Start in the menu bar without opening a window.";
-"Allow NathPaint in macOS Login Items to finish enabling." = "Allow NathPaint in macOS Login Items to finish enabling.";
+"Allow NahtPaint in macOS Login Items to finish enabling." = "Allow NahtPaint in macOS Login Items to finish enabling.";
 "Open Login Items…" = "Open Login Items…";
 "Could not change launch at login: %@" = "Could not change launch at login: %@";
-"About NathPaint" = "About NathPaint";
+"About NahtPaint" = "About NahtPaint";
 "Services" = "Services";
-"Hide NathPaint" = "Hide NathPaint";
+"Hide NahtPaint" = "Hide NahtPaint";
 "Hide Others" = "Hide Others";
 "Show All" = "Show All";
 "File" = "File";
@@ -189,3 +189,9 @@
 "Window" = "Window";
 "Minimize" = "Minimize";
 "Bring All to Front" = "Bring All to Front";
+
+// Selection transforms
+"Flip Horizontal" = "Flip Horizontal";
+"Flip Vertical" = "Flip Vertical";
+"Selection flipped horizontally" = "Selection flipped horizontally";
+"Selection flipped vertically" = "Selection flipped vertically";

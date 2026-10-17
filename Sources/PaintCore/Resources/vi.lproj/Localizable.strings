@@ -1,4 +1,4 @@
-// NathPaint interface translations. English strings are localization keys.
+// NahtPaint interface translations. English strings are localization keys.
 "New" = "Mới";
 "Open" = "Mở";
 "Open…" = "Mở…";
@@ -23,22 +23,22 @@
 "Zoom In" = "Phóng to";
 "Zoom Out" = "Thu nhỏ";
 "Actual Pixels" = "Kích thước thực";
-"Open NathPaint" = "Mở NathPaint";
+"Open NahtPaint" = "Mở NahtPaint";
 "New from Clipboard" = "Tạo ảnh từ bộ nhớ tạm";
 "Show App In" = "Vị trí hiển thị";
 "Quick Open" = "Mở nhanh";
-"Quit NathPaint" = "Thoát NathPaint";
+"Quit NahtPaint" = "Thoát NahtPaint";
 "Dock + menu bar" = "Dock + thanh menu";
 "Dock only" = "Chỉ Dock";
 "Menu bar only" = "Chỉ thanh menu";
 "Double-click" = "Nhấp đúp";
 "Single-click" = "Nhấp một lần";
 "Menu only" = "Chỉ hiện menu";
-"Click for the menu. Double-click to open NathPaint." = "Nhấp để hiện menu. Nhấp đúp để mở NathPaint.";
-"Click to open NathPaint. Right-click for the menu." = "Nhấp để mở NathPaint. Nhấp chuột phải để hiện menu.";
-"Click for the menu, then choose Open NathPaint." = "Nhấp để hiện menu, rồi chọn Mở NathPaint.";
+"Click for the menu. Double-click to open NahtPaint." = "Nhấp để hiện menu. Nhấp đúp để mở NahtPaint.";
+"Click to open NahtPaint. Right-click for the menu." = "Nhấp để mở NahtPaint. Nhấp chuột phải để hiện menu.";
+"Click for the menu, then choose Open NahtPaint." = "Nhấp để hiện menu, rồi chọn Mở NahtPaint.";
 "Language" = "Ngôn ngữ";
-"Show NathPaint in" = "Hiển thị NathPaint ở";
+"Show NahtPaint in" = "Hiển thị NahtPaint ở";
 "Settings…" = "Cài đặt…";
 "Untitled" = "Chưa đặt tên";
 "Save changes to %@?" = "Lưu thay đổi cho %@?";
@@ -163,7 +163,7 @@
 "Text selected · Drag to move · Double-click to edit" = "Đã chọn chữ · Kéo để di chuyển · Nhấp đúp để sửa";
 "Clear canvas on close or quit" = "Xóa khung vẽ khi đóng cửa sổ hoặc thoát";
 "Discard unsaved changes without asking." = "Bỏ thay đổi chưa lưu mà không hỏi lại.";
-"What should happen when you close NathPaint?" = "Bạn muốn xử lý khung vẽ thế nào khi đóng NathPaint?";
+"What should happen when you close NahtPaint?" = "Bạn muốn xử lý khung vẽ thế nào khi đóng NahtPaint?";
 "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "Giữ khung vẽ: đóng cửa sổ sẽ giữ lại nội dung; thoát ứng dụng sẽ hỏi lưu. Tự động xóa: đóng cửa sổ hoặc thoát sẽ bỏ nội dung chưa lưu. Bạn có thể đổi lựa chọn này trong Cài đặt.";
 "Keep canvas" = "Giữ khung vẽ";
 "Clear automatically" = "Tự động xóa";
@@ -174,12 +174,12 @@
 
 "Launch at login" = "Khởi động cùng macOS";
 "Start in the menu bar without opening a window." = "Chạy ở menu bar mà không mở cửa sổ.";
-"Allow NathPaint in macOS Login Items to finish enabling." = "Cho phép NathPaint trong Mục đăng nhập của macOS để hoàn tất bật.";
+"Allow NahtPaint in macOS Login Items to finish enabling." = "Cho phép NahtPaint trong Mục đăng nhập của macOS để hoàn tất bật.";
 "Open Login Items…" = "Mở Mục đăng nhập…";
 "Could not change launch at login: %@" = "Không thể đổi thiết lập khởi động cùng macOS: %@";
-"About NathPaint" = "Giới thiệu NathPaint";
+"About NahtPaint" = "Giới thiệu NahtPaint";
 "Services" = "Dịch vụ";
-"Hide NathPaint" = "Ẩn NathPaint";
+"Hide NahtPaint" = "Ẩn NahtPaint";
 "Hide Others" = "Ẩn ứng dụng khác";
 "Show All" = "Hiện tất cả";
 "File" = "Tệp";
@@ -189,3 +189,9 @@
 "Window" = "Cửa sổ";
 "Minimize" = "Thu nhỏ";
 "Bring All to Front" = "Đưa tất cả ra trước";
+
+// Selection transforms
+"Flip Horizontal" = "Lật ngang";
+"Flip Vertical" = "Lật dọc";
+"Selection flipped horizontally" = "Đã lật ngang vùng chọn";
+"Selection flipped vertically" = "Đã lật dọc vùng chọn";

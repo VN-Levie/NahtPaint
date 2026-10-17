@@ -32,7 +32,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
                 self.engine.finishEditing()
                 self.engine.refreshLanguage()
                 self.syncTitle()
-                self.preferencesWindow?.title = "NathPaint — " + L10n.tr("Settings…")
+                self.preferencesWindow?.title = "NahtPaint — " + L10n.tr("Settings…")
                 self.objectWillChange.send()
             }
         }
@@ -41,7 +41,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
                 guard AppPreferences.shared.language == .system, let self else { return }
                 AppPreferences.shared.objectWillChange.send()
                 self.engine.refreshLanguage(); self.syncTitle()
-                self.preferencesWindow?.title = "NathPaint — " + L10n.tr("Settings…")
+                self.preferencesWindow?.title = "NahtPaint — " + L10n.tr("Settings…")
             }
         }
         observation = engine.objectWillChange.sink { [weak self] _ in
@@ -53,11 +53,12 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         self.window = window
         window.delegate = self
         window.isReleasedWhenClosed = false
+        // Preserve the saved window geometry from releases before the display-name correction.
         window.setFrameAutosaveName("NathPaint.Editor")
         syncTitle()
     }
     private func syncTitle() {
-        window?.title = "\(fileURL?.lastPathComponent ?? L10n.tr("Untitled")) — NathPaint"
+        window?.title = "\(fileURL?.lastPathComponent ?? L10n.tr("Untitled")) — NahtPaint"
         window?.isDocumentEdited = engine.isDirty
         window?.representedURL = fileURL
     }
@@ -86,7 +87,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
             let settings = NSWindow(contentViewController: host)
             settings.styleMask = [.titled, .closable]
             settings.isReleasedWhenClosed = false
-            settings.title = "NathPaint — " + L10n.tr("Settings…")
+            settings.title = "NahtPaint — " + L10n.tr("Settings…")
             settings.center()
             preferencesWindow = settings
         }
@@ -109,7 +110,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         guard AppPreferences.shared.needsInitialCanvasChoice else { return }
         showWindow()
         let alert = NSAlert()
-        alert.messageText = L10n.tr("What should happen when you close NathPaint?")
+        alert.messageText = L10n.tr("What should happen when you close NahtPaint?")
         alert.informativeText = L10n.tr("Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings.")
         alert.addButton(withTitle: L10n.tr("Keep canvas"))
         alert.addButton(withTitle: L10n.tr("Clear automatically"))

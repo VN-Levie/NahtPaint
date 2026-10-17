@@ -1,7 +1,7 @@
 import ServiceManagement
 import XCTest
 import PaintCore
-@testable import NathPaint
+@testable import NahtPaint
 
 @MainActor
 final class LoginItemControllerTests: XCTestCase {

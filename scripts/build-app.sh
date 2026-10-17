@@ -8,38 +8,38 @@ case "${1:-}" in
   *) printf 'Usage: %s [--universal]\n' "$0" >&2; exit 2 ;;
 esac
 swift build -c release "${BUILD_ARGS[@]}"
-APP="$PWD/build/NathPaint.app"
+APP="$PWD/build/NahtPaint.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 BIN_DIR="$(swift build -c release "${BUILD_ARGS[@]}" --show-bin-path)"
-cp "$BIN_DIR/NathPaint" "$APP/Contents/MacOS/NathPaint"
+cp "$BIN_DIR/NahtPaint" "$APP/Contents/MacOS/NahtPaint"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
-if [[ -d Resources/NathPaint.icon ]]; then
+if [[ -d Resources/NahtPaint.icon ]]; then
   ICON_OUTPUT="$PWD/build/icon-compiled"
   mkdir -p "$ICON_OUTPUT"
-  xcrun actool "$PWD/Resources/NathPaint.icon" --compile "$ICON_OUTPUT" \
-    --app-icon NathPaint --target-device mac --platform macosx \
+  xcrun actool "$PWD/Resources/NahtPaint.icon" --compile "$ICON_OUTPUT" \
+    --app-icon NahtPaint --target-device mac --platform macosx \
     --minimum-deployment-target 14.0 --bundle-identifier com.levie.NathPaint \
     --output-partial-info-plist "$ICON_OUTPUT/icon.plist" \
     --output-format human-readable-text --warnings --errors --notices
   cp "$ICON_OUTPUT/Assets.car" "$APP/Contents/Resources/Assets.car"
-  cp "$ICON_OUTPUT/NathPaint.icns" "$APP/Contents/Resources/NathPaint.icns"
-  /usr/libexec/PlistBuddy -c 'Set :CFBundleIconFile NathPaint' "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string NathPaint' "$APP/Contents/Info.plist"
+  cp "$ICON_OUTPUT/NahtPaint.icns" "$APP/Contents/Resources/NahtPaint.icns"
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleIconFile NahtPaint' "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string NahtPaint' "$APP/Contents/Info.plist"
 elif [[ -f Resources/AppIcon.icns ]]; then
   cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 fi
 if [[ -f Resources/MenuBarIcon.png ]]; then
   cp Resources/MenuBarIcon.png "$APP/Contents/Resources/MenuBarIcon.png"
 fi
-if [[ -d "$BIN_DIR/NathPaint_PaintCore.bundle" ]]; then
-  ditto "$BIN_DIR/NathPaint_PaintCore.bundle" "$APP/Contents/Resources/NathPaint_PaintCore.bundle"
+if [[ -d "$BIN_DIR/NahtPaint_PaintCore.bundle" ]]; then
+  ditto "$BIN_DIR/NahtPaint_PaintCore.bundle" "$APP/Contents/Resources/NahtPaint_PaintCore.bundle"
 fi
 cp LICENSE "$APP/Contents/Resources/LICENSE.txt"
 # SwiftPM release binaries retain debug-map entries with absolute source/object paths.
 # Remove only debug symbols, before signing, so they cannot leak into release archives.
-codesign --remove-signature "$APP/Contents/MacOS/NathPaint"
-xcrun strip -S "$APP/Contents/MacOS/NathPaint"
-python3 - "$APP/Contents/MacOS/NathPaint" <<'PY'
+codesign --remove-signature "$APP/Contents/MacOS/NahtPaint"
+xcrun strip -S "$APP/Contents/MacOS/NahtPaint"
+python3 - "$APP/Contents/MacOS/NahtPaint" <<'PY'
 import sys
 from pathlib import Path
 binary = Path(sys.argv[1]).read_bytes()

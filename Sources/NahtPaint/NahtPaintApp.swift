@@ -6,7 +6,7 @@ import Carbon
 
 @main
 @MainActor
-enum NathPaintApp {
+enum NahtPaintApp {
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
@@ -143,10 +143,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = item.button {
             button.image = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "png")
                 .flatMap { NSImage(contentsOf: $0) }
-                ?? NSImage(systemSymbolName: "n.square", accessibilityDescription: "NathPaint")
+                ?? NSImage(systemSymbolName: "n.square", accessibilityDescription: "NahtPaint")
             button.image?.size = NSSize(width: 18, height: 18)
             button.image?.isTemplate = true
-            button.toolTip = "NathPaint"
+            button.toolTip = "NahtPaint"
             button.target = self
             button.action = #selector(statusClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -166,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showMenu() {
         guard let item = statusItem, let button = item.button else { return }
         let menu = NSMenu()
-        let open = menu.addItem(withTitle: L10n.tr("Open NathPaint"), action: #selector(openEditor), keyEquivalent: "")
+        let open = menu.addItem(withTitle: L10n.tr("Open NahtPaint"), action: #selector(openEditor), keyEquivalent: "")
         open.target = self
         let paste = menu.addItem(withTitle: L10n.tr("New from Clipboard"), action: #selector(clipboardDocument), keyEquivalent: "")
         paste.target = self
@@ -190,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = menu.addItem(withTitle: L10n.tr("Settings…"), action: #selector(openPreferences), keyEquivalent: "")
         settings.target = self
         menu.addItem(.separator())
-        let quit = menu.addItem(withTitle: L10n.tr("Quit NathPaint"), action: #selector(quitApp), keyEquivalent: "")
+        let quit = menu.addItem(withTitle: L10n.tr("Quit NahtPaint"), action: #selector(quitApp), keyEquivalent: "")
         quit.target = self
         item.menu = menu
         button.performClick(nil)

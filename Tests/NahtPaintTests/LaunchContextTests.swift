@@ -1,7 +1,7 @@
 import AppKit
 import Carbon
 import XCTest
-@testable import NathPaint
+@testable import NahtPaint
 
 final class LaunchContextTests: XCTestCase {
     func testLoginLaunchDoesNotCreateEditorEvenWithDockOnlyPreference() async {

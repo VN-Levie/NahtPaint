@@ -11,11 +11,11 @@
   },
   "groups": [
     {
-      "name": "NathPaint",
+      "name": "NahtPaint",
       "layers": [
         {
-          "name": "NathPaint paint stroke",
-          "image-name": "NathPaint-mark.png",
+          "name": "NahtPaint paint stroke",
+          "image-name": "NahtPaint-mark.png",
           "glass": false,
           "position": {
             "scale": 0.82,

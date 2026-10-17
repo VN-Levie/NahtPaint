@@ -102,24 +102,36 @@ struct Bitmap {
         }
     }
     /// Pixel-copy / source-over compositing also avoids NSImage point-size and flipped-coordinate ambiguity.
-    mutating func composite(_ source: Bitmap, in rect: CGRect) {
+    mutating func composite(_ source: Bitmap, in rect: CGRect, flippedHorizontally: Bool = false,
+                            flippedVertically: Bool = false, replacing: Bool = false) {
         guard rect.width > 0, rect.height > 0 else { return }
         let minX = max(0, Int(floor(rect.minX))), minY = max(0, Int(floor(rect.minY)))
         let maxX = min(width, Int(ceil(rect.maxX))), maxY = min(height, Int(ceil(rect.maxY)))
         guard minX < maxX, minY < maxY else { return }
         for y in minY..<maxY {
-            let sy = min(source.height - 1, max(0, Int((CGFloat(y) - rect.minY) * CGFloat(source.height) / rect.height)))
+            let destinationY = CGFloat(y) - rect.minY
+            let sampleY = flippedVertically ? rect.height - 1 - destinationY : destinationY
+            let sy = min(source.height - 1, max(0, Int(sampleY * CGFloat(source.height) / rect.height)))
             for x in minX..<maxX {
-                let sx = min(source.width - 1, max(0, Int((CGFloat(x) - rect.minX) * CGFloat(source.width) / rect.width)))
+                // Reflect destination pixels before resampling. Reversing source indices would
+                // assign repeated pixels to the wrong side when the scale is not an integer.
+                let destinationX = CGFloat(x) - rect.minX
+                let sampleX = flippedHorizontally ? rect.width - 1 - destinationX : destinationX
+                let sx = min(source.width - 1, max(0, Int(sampleX * CGFloat(source.width) / rect.width)))
                 let si = (sy * source.width + sx) * 4, di = (y * width + x) * 4
+                if replacing {
+                    for c in 0..<4 { pixels[di+c] = source.pixels[si+c] }
+                    continue
+                }
                 let a = Int(source.pixels[si+3]), inv = 255 - a
                 for c in 0..<4 { pixels[di+c] = UInt8(min(255, Int(source.pixels[si+c]) + (Int(pixels[di+c]) * inv + 127) / 255)) }
             }
         }
     }
-    func resized(width: Int, height: Int) -> Bitmap {
+    func resized(width: Int, height: Int, flippedHorizontally: Bool = false, flippedVertically: Bool = false) -> Bitmap {
         var result = Bitmap(width: width, height: height, white: false)
-        result.composite(self, in: CGRect(x: 0, y: 0, width: width, height: height))
+        result.composite(self, in: CGRect(x: 0, y: 0, width: width, height: height),
+                         flippedHorizontally: flippedHorizontally, flippedVertically: flippedVertically)
         return result
     }
     func color(at point: CGPoint) -> NSColor? {

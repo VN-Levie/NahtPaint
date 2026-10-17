@@ -1,4 +1,4 @@
-// NathPaint interface translations. English strings are localization keys.
+// NahtPaint interface translations. English strings are localization keys.
 "New" = "新規";
 "Open" = "開く";
 "Open…" = "開く…";
@@ -23,22 +23,22 @@
 "Zoom In" = "拡大";
 "Zoom Out" = "縮小";
 "Actual Pixels" = "実際のピクセル";
-"Open NathPaint" = "NathPaint を開く";
+"Open NahtPaint" = "NahtPaint を開く";
 "New from Clipboard" = "クリップボードから新規作成";
 "Show App In" = "表示場所";
 "Quick Open" = "クイック起動";
-"Quit NathPaint" = "NathPaint を終了";
+"Quit NahtPaint" = "NahtPaint を終了";
 "Dock + menu bar" = "Dock とメニューバー";
 "Dock only" = "Dock のみ";
 "Menu bar only" = "メニューバーのみ";
 "Double-click" = "ダブルクリック";
 "Single-click" = "シングルクリック";
 "Menu only" = "メニューのみ";
-"Click for the menu. Double-click to open NathPaint." = "クリックでメニューを表示。ダブルクリックで NathPaint を開きます。";
-"Click to open NathPaint. Right-click for the menu." = "クリックで NathPaint を開き、右クリックでメニューを表示します。";
-"Click for the menu, then choose Open NathPaint." = "クリックでメニューを表示し、「NathPaint を開く」を選びます。";
+"Click for the menu. Double-click to open NahtPaint." = "クリックでメニューを表示。ダブルクリックで NahtPaint を開きます。";
+"Click to open NahtPaint. Right-click for the menu." = "クリックで NahtPaint を開き、右クリックでメニューを表示します。";
+"Click for the menu, then choose Open NahtPaint." = "クリックでメニューを表示し、「NahtPaint を開く」を選びます。";
 "Language" = "言語";
-"Show NathPaint in" = "NathPaint の表示場所";
+"Show NahtPaint in" = "NahtPaint の表示場所";
 "Settings…" = "設定…";
 "Untitled" = "名称未設定";
 "Save changes to %@?" = "%@ への変更を保存しますか？";
@@ -163,7 +163,7 @@
 "Text selected · Drag to move · Double-click to edit" = "テキストを選択中 · ドラッグで移動 · ダブルクリックで編集";
 "Clear canvas on close or quit" = "ウインドウを閉じるときや終了時にキャンバスを消去";
 "Discard unsaved changes without asking." = "確認せずに未保存の変更を破棄します。";
-"What should happen when you close NathPaint?" = "NathPaint を閉じるとき、キャンバスをどうしますか？";
+"What should happen when you close NahtPaint?" = "NahtPaint を閉じるとき、キャンバスをどうしますか？";
 "Keep canvas: closing the window keeps your work; quitting asks to save. Clear automatically: closing the window or quitting discards unsaved work. You can change this in Settings." = "キャンバスを保持：ウインドウを閉じても作業内容を保持し、終了時に保存を確認します。自動消去：ウインドウを閉じるときや終了時に未保存の作業を破棄します。この設定は後から変更できます。";
 "Keep canvas" = "キャンバスを保持";
 "Clear automatically" = "自動消去";
@@ -174,12 +174,12 @@
 
 "Launch at login" = "ログイン時に起動";
 "Start in the menu bar without opening a window." = "ウインドウを開かず、メニューバーで起動します。";
-"Allow NathPaint in macOS Login Items to finish enabling." = "macOSのログイン項目でNathPaintを許可してください。";
+"Allow NahtPaint in macOS Login Items to finish enabling." = "macOSのログイン項目でNahtPaintを許可してください。";
 "Open Login Items…" = "ログイン項目を開く…";
 "Could not change launch at login: %@" = "ログイン時の起動設定を変更できませんでした：%@";
-"About NathPaint" = "NathPaintについて";
+"About NahtPaint" = "NahtPaintについて";
 "Services" = "サービス";
-"Hide NathPaint" = "NathPaintを隠す";
+"Hide NahtPaint" = "NahtPaintを隠す";
 "Hide Others" = "ほかを隠す";
 "Show All" = "すべてを表示";
 "File" = "ファイル";
@@ -189,3 +189,9 @@
 "Window" = "ウインドウ";
 "Minimize" = "しまう";
 "Bring All to Front" = "すべてを手前に移動";
+
+// Selection transforms
+"Flip Horizontal" = "左右反転";
+"Flip Vertical" = "上下反転";
+"Selection flipped horizontally" = "選択範囲を左右反転しました";
+"Selection flipped vertically" = "選択範囲を上下反転しました";

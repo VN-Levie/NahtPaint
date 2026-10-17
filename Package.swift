@@ -2,15 +2,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "NathPaint",
+    name: "NahtPaint",
     defaultLocalization: "en",
     platforms: [.macOS(.v14)],
-    products: [.executable(name: "NathPaint", targets: ["NathPaint"])],
+    products: [.executable(name: "NahtPaint", targets: ["NahtPaint"])],
     targets: [
         .target(name: "PaintCore", resources: [.process("Resources")]),
-        .executableTarget(name: "NathPaint", dependencies: ["PaintCore"]),
+        .executableTarget(name: "NahtPaint", dependencies: ["PaintCore"]),
         .testTarget(name: "PaintCoreTests", dependencies: ["PaintCore"]),
-        .testTarget(name: "NathPaintTests", dependencies: ["NathPaint"])
+        .testTarget(name: "NahtPaintTests", dependencies: ["NahtPaint"])
     ],
     swiftLanguageModes: [.v5]
 )

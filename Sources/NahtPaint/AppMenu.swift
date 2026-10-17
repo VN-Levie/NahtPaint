@@ -22,8 +22,8 @@ final class AppMenu {
             item.submenu = menu; main.addItem(item)
             return menu
         }
-        let app = submenu("NathPaint")
-        add("About NathPaint", to: app) { NSApp.orderFrontStandardAboutPanel(nil) }
+        let app = submenu("NahtPaint")
+        add("About NahtPaint", to: app) { NSApp.orderFrontStandardAboutPanel(nil) }
         app.addItem(.separator())
         add("Settings…", key: ",", to: app) { controller.showPreferences() }
         app.addItem(.separator())
@@ -31,11 +31,11 @@ final class AppMenu {
         let serviceItem = NSMenuItem(title: services.title, action: nil, keyEquivalent: "")
         serviceItem.submenu = services; app.addItem(serviceItem); NSApp.servicesMenu = services
         app.addItem(.separator())
-        add("Hide NathPaint", key: "h", to: app) { NSApp.hide(nil) }
+        add("Hide NahtPaint", key: "h", to: app) { NSApp.hide(nil) }
         add("Hide Others", key: "h", modifiers: [.command, .option], to: app) { NSApp.hideOtherApplications(nil) }
         add("Show All", to: app) { NSApp.unhideAllApplications(nil) }
         app.addItem(.separator())
-        add("Quit NathPaint", key: "q", to: app) { NSApp.terminate(nil) }
+        add("Quit NahtPaint", key: "q", to: app) { NSApp.terminate(nil) }
 
         let file = submenu("File")
         add("New", key: "n", to: file) { controller.newDocument() }
@@ -64,6 +64,9 @@ final class AppMenu {
         add("Actual Pixels", key: "0", to: view) { controller.engine.zoom = 1 }
 
         let image = submenu("Image")
+        add("Flip Horizontal", to: image, enabled: { controller.engine.canFlipSelection }) { controller.engine.flipSelectionHorizontally() }
+        add("Flip Vertical", to: image, enabled: { controller.engine.canFlipSelection }) { controller.engine.flipSelectionVertically() }
+        image.addItem(.separator())
         add("Crop to Selection", key: "k", to: image, enabled: { controller.engine.hasSelection }) { controller.engine.cropToSelection() }
         add("Resize Image…", to: image) { controller.presentResize(scale: true) }
         add("Canvas Size…", to: image) { controller.presentResize(scale: false) }

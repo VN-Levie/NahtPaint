@@ -24,6 +24,8 @@ struct PaintTextObject: Identifiable {
     var style: PaintTextStyle
     var scaleX: CGFloat = 1
     var scaleY: CGFloat = 1
+    var flippedHorizontally = false
+    var flippedVertically = false
     var raster: Bitmap
     /// An optional crop in the object's natural, unscaled coordinates.
     var clipRect: CGRect?
@@ -33,10 +35,29 @@ struct PaintTextObject: Identifiable {
         return clipRect.map { full.intersection($0) } ?? full
     }
     var bounds: CGRect {
-        let local = localBounds
+        let local = displayedLocalBounds
         guard !local.isNull else { return .null }
         return CGRect(x: position.x + local.minX * scaleX, y: position.y + local.minY * scaleY,
                       width: local.width * scaleX, height: local.height * scaleY)
+    }
+    private var displayedLocalBounds: CGRect {
+        let local = localBounds
+        guard !local.isNull else { return .null }
+        return CGRect(x: flippedHorizontally ? CGFloat(raster.width) - local.maxX : local.minX,
+                      y: flippedVertically ? CGFloat(raster.height) - local.maxY : local.minY,
+                      width: local.width, height: local.height)
+    }
+    func flipped(in rect: CGRect, horizontally: Bool, vertically: Bool) -> PaintTextObject {
+        var result = self
+        if horizontally {
+            result.position.x = rect.minX + rect.maxX - position.x - CGFloat(raster.width) * scaleX
+            result.flippedHorizontally.toggle()
+        }
+        if vertically {
+            result.position.y = rect.minY + rect.maxY - position.y - CGFloat(raster.height) * scaleY
+            result.flippedVertically.toggle()
+        }
+        return result
     }
     func transformed(from source: CGRect, to target: CGRect) -> PaintTextObject {
         var result = self
@@ -50,8 +71,11 @@ struct PaintTextObject: Identifiable {
         let visible = bounds.intersection(rect)
         guard !visible.isNull, visible.width > 0, visible.height > 0 else { return nil }
         var result = self
-        let localCrop = CGRect(x: (visible.minX - position.x) / scaleX, y: (visible.minY - position.y) / scaleY,
-                               width: visible.width / scaleX, height: visible.height / scaleY)
+        let displayedCrop = CGRect(x: (visible.minX - position.x) / scaleX, y: (visible.minY - position.y) / scaleY,
+                                   width: visible.width / scaleX, height: visible.height / scaleY)
+        let localCrop = CGRect(x: flippedHorizontally ? CGFloat(raster.width) - displayedCrop.maxX : displayedCrop.minX,
+                               y: flippedVertically ? CGFloat(raster.height) - displayedCrop.maxY : displayedCrop.minY,
+                               width: displayedCrop.width, height: displayedCrop.height)
         if visible != bounds { result.clipRect = localBounds.intersection(localCrop) }
         result.position.x -= rect.minX; result.position.y -= rect.minY
         return result
@@ -63,10 +87,12 @@ struct PaintTextObject: Identifiable {
         guard !visible.isNull, visible.width > 0, visible.height > 0 else { return }
         // Sample in object coordinates so fractional crops after scaling cannot reveal clipped pixels later.
         for y in max(0, Int(floor(visible.minY)))..<min(bitmap.height, Int(ceil(visible.maxY))) {
-            let sy = (CGFloat(y) + offset.y - position.y) / scaleY
+            let destinationY = CGFloat(y) + offset.y - position.y
+            let sy = flippedVertically ? CGFloat(raster.height) - (destinationY + 1) / scaleY : destinationY / scaleY
             guard sy >= local.minY, sy < local.maxY else { continue }
             for x in max(0, Int(floor(visible.minX)))..<min(bitmap.width, Int(ceil(visible.maxX))) {
-                let sx = (CGFloat(x) + offset.x - position.x) / scaleX
+                let destinationX = CGFloat(x) + offset.x - position.x
+                let sx = flippedHorizontally ? CGFloat(raster.width) - (destinationX + 1) / scaleX : destinationX / scaleX
                 guard sx >= local.minX, sx < local.maxX else { continue }
                 let source = (min(raster.height - 1, max(0, Int(sy))) * raster.width + min(raster.width - 1, max(0, Int(sx)))) * 4
                 let target = (y * bitmap.width + x) * 4
@@ -109,7 +135,7 @@ struct PaintTextObject: Identifiable {
     }
 }
 
-/// Portable metadata accompanies PNG on NathPaint's clipboard without changing other apps' image paste.
+/// Portable metadata accompanies PNG on NahtPaint's clipboard without changing other apps' image paste.
 struct PaintTextTransfer: Codable {
     var text: String
     var position: CGPoint
@@ -122,6 +148,9 @@ struct PaintTextTransfer: Codable {
     var scaleX: CGFloat
     var scaleY: CGFloat
     var clipRect: CGRect?
+    // Optional so clipboard payloads from earlier releases still decode.
+    var flippedHorizontally: Bool?
+    var flippedVertically: Bool?
 
     init(_ object: PaintTextObject, offset: CGPoint) {
         text = object.text; position = CGPoint(x: object.position.x - offset.x, y: object.position.y - offset.y)
@@ -129,6 +158,7 @@ struct PaintTextTransfer: Codable {
         color = Self.components(object.style.color); border = object.style.border
         backgroundEnabled = object.style.backgroundEnabled; backgroundColor = Self.components(object.style.backgroundColor)
         scaleX = object.scaleX; scaleY = object.scaleY; clipRect = object.clipRect
+        flippedHorizontally = object.flippedHorizontally; flippedVertically = object.flippedVertically
     }
     private static func components(_ color: NSColor) -> [CGFloat] {
         let rgb = color.usingColorSpace(.sRGB) ?? .black
@@ -150,6 +180,7 @@ struct PaintTextTransfer: Codable {
                                   backgroundColor: NSColor(srgbRed: backgroundColor[0], green: backgroundColor[1], blue: backgroundColor[2], alpha: backgroundColor[3]))
         let raster = try PaintTextObject.render(text: text, width: layoutWidth, style: style)
         return PaintTextObject(id: UUID(), text: text, position: position, layoutWidth: layoutWidth, style: style,
-                               scaleX: scaleX, scaleY: scaleY, raster: raster, clipRect: clipRect)
+                               scaleX: scaleX, scaleY: scaleY, flippedHorizontally: flippedHorizontally ?? false,
+                               flippedVertically: flippedVertically ?? false, raster: raster, clipRect: clipRect)
     }
 }

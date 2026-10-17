@@ -108,6 +108,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     @Published public private(set) var renderVersion = 0
     public var selectionRect: CGRect? { selection?.rect ?? selectedTextObject?.bounds }
     public var hasSelectedText: Bool { selectedTextID != nil }
+    public var canFlipSelection: Bool { selection.map { !$0.isCrop } ?? (selectedTextObject != nil) }
     private(set) var textObjects: [PaintTextObject] = []
     private(set) var selectedTextID: UUID?
     private(set) var editingTextID: UUID?
@@ -127,6 +128,9 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         var isCrop = false
         var textIDs: Set<UUID> = []
         var textSourceRect: CGRect?
+        var flippedHorizontally = false
+        var flippedVertically = false
+        var isUnchanged: Bool { originalRect == rect && !flippedHorizontally && !flippedVertically }
     }
     var bitmap: Bitmap
     var selection: Selection?
@@ -179,7 +183,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         canUndo = !undoStack.isEmpty || selection != nil
         canRedo = !redoStack.isEmpty
         hasSelection = selection != nil || selectedTextID != nil
-        isDirty = revision != savedRevision || selection.map { !$0.isCrop && ($0.originalRect == nil || $0.rect != $0.originalRect) } == true
+        isDirty = revision != savedRevision || selection.map { !$0.isCrop && !$0.isUnchanged } == true
             || textMoveBefore.map { before in zip(before.textObjects, textObjects).contains { $0.position != $1.position } } == true
         renderVersion &+= 1
     }
@@ -309,18 +313,39 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         guard (try? Bitmap.validate(w, h)) != nil else { status = PaintError.invalidSize.localizedDescription; return }
         moveSelection(to: rect.origin); resizeSelection(to: rect.size)
     }
+    public func flipSelectionHorizontally() { flipSelection(horizontally: true, vertically: false) }
+    public func flipSelectionVertically() { flipSelection(horizontally: false, vertically: true) }
+    private func flipSelection(horizontally: Bool, vertically: Bool) {
+        guard canFlipSelection else { return }
+        finishEditing()
+        if selection != nil {
+            if horizontally { selection?.flippedHorizontally.toggle() }
+            if vertically { selection?.flippedVertically.toggle() }
+            refresh()
+        } else if let index = textObjects.firstIndex(where: { $0.id == selectedTextID }) {
+            let before = snapshot()
+            textObjects[index] = textObjects[index].flipped(in: textObjects[index].bounds, horizontally: horizontally, vertically: vertically)
+            record(before)
+        } else { return }
+        status = L10n.tr(horizontally ? "Selection flipped horizontally" : "Selection flipped vertically")
+    }
     private func compositedRaster() -> Bitmap {
         guard let selection else { return bitmap }
         if selection.isCrop { return bitmap }
-        if selection.originalRect == selection.rect { return selection.before.bitmap }
+        if selection.isUnchanged { return selection.before.bitmap }
         var result = bitmap
-        result.composite(selection.image, in: selection.rect)
+        // A flip in place replaces lifted pixels, including their original alpha.
+        result.composite(selection.image, in: selection.rect, flippedHorizontally: selection.flippedHorizontally,
+                         flippedVertically: selection.flippedVertically, replacing: selection.originalRect == selection.rect)
         return result
     }
     private func projectedTextObjects() -> [PaintTextObject] {
-        guard let selection, !selection.isCrop, let original = selection.textSourceRect ?? selection.originalRect,
-              original != selection.rect else { return textObjects }
-        return textObjects.map { selection.textIDs.contains($0.id) ? $0.transformed(from: original, to: selection.rect) : $0 }
+        guard let selection, !selection.isCrop, let original = selection.textSourceRect ?? selection.originalRect else { return textObjects }
+        return textObjects.map { object in
+            guard selection.textIDs.contains(object.id) else { return object }
+            let transformed = original == selection.rect ? object : object.transformed(from: original, to: selection.rect)
+            return transformed.flipped(in: selection.rect, horizontally: selection.flippedHorizontally, vertically: selection.flippedVertically)
+        }
     }
     func displayBitmap(excludingTextID: UUID? = nil) -> Bitmap {
         var result = compositedRaster()
@@ -332,7 +357,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         selectedTextID = nil
         guard let active = selection else { refresh(); return }
         if active.isCrop { selection = nil; hasSelection = false; refresh(); return }
-        if active.originalRect == active.rect {
+        if active.isUnchanged {
             bitmap = active.before.bitmap
             selection = nil; hasSelection = false; refresh(); return
         }
@@ -403,7 +428,11 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     }
     public func undo() {
         finishEditing()
-        if selection != nil { cancelSelection(); return }
+        if let active = selection {
+            // Keep a pending flip available to Redo, just like a committed text flip.
+            if active.flippedHorizontally || active.flippedVertically { commitSelection() }
+            else { cancelSelection(); return }
+        }
         guard let previous = undoStack.popLast() else { return }
         redoStack.append(snapshot()); restore(previous); status = L10n.tr("Undo")
     }
@@ -431,7 +460,8 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         guard let active = selection else { return nil }
         if active.isCrop { return try displayBitmap().crop(active.rect).encoded(.png) }
         try Bitmap.validate(Int(active.rect.width), Int(active.rect.height))
-        var output = active.image.resized(width: Int(active.rect.width), height: Int(active.rect.height))
+        var output = active.image.resized(width: Int(active.rect.width), height: Int(active.rect.height),
+                                          flippedHorizontally: active.flippedHorizontally, flippedVertically: active.flippedVertically)
         for object in projectedTextObjects() where active.textIDs.contains(object.id) { object.draw(on: &output, offset: active.rect.origin) }
         return try output.encoded(.png)
     }
@@ -475,7 +505,8 @@ public enum PaintTool: String, CaseIterable, Identifiable {
             }
             try Bitmap.validate(Int(active.rect.width), Int(active.rect.height))
             let objects = projectedTextObjects().filter { active.textIDs.contains($0.id) }
-            return (active.image.resized(width: Int(active.rect.width), height: Int(active.rect.height)),
+            return (active.image.resized(width: Int(active.rect.width), height: Int(active.rect.height),
+                                         flippedHorizontally: active.flippedHorizontally, flippedVertically: active.flippedVertically),
                     objects.map { PaintTextTransfer($0, offset: active.rect.origin) })
         }
         let canvas = CGRect(x: 0, y: 0, width: width, height: height)

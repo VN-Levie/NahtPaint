@@ -3,19 +3,20 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>NathPaint</string>
+	<string>NahtPaint</string>
 	<key>CFBundleDisplayName</key>
-	<string>NathPaint</string>
+	<string>NahtPaint</string>
 	<key>CFBundleIdentifier</key>
+	<!-- Retain the installed app identity so preferences and macOS integrations survive the rename. -->
 	<string>com.levie.NathPaint</string>
 	<key>CFBundleExecutable</key>
-	<string>NathPaint</string>
+	<string>NahtPaint</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.2</string>
+	<string>0.3.0</string>
 	<key>CFBundleVersion</key>
-	<string>6</string>
+	<string>7</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>LSMinimumSystemVersion</key>

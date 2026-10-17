@@ -54,6 +54,8 @@ struct EditorView: View {
             separator
             action("Paste", "doc.on.clipboard", controller.paste)
             action("Crop", "crop") { engine.cropToSelection() }.disabled(!engine.hasSelection)
+            flipAction("Flip Horizontal", "arrow.left.and.right.righttriangle.left.righttriangle.right", engine.flipSelectionHorizontally)
+            flipAction("Flip Vertical", "arrow.up.and.down.righttriangle.up.righttriangle.down", engine.flipSelectionVertically)
             Spacer(minLength: 4)
             Button { controller.showPreferences() } label: { Image(systemName: "gearshape").font(.system(size: 14)) }
                 .buttonStyle(.plain).help(L10n.tr("Settings…"))
@@ -204,6 +206,15 @@ struct EditorView: View {
     }
     private var zoomLevels: [CGFloat] { Array(Set([CGFloat(0.125), 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 8, engine.zoom])).sorted() }
     private var separator: some View { Divider().frame(height: 22).padding(.horizontal, 5) }
+    private func flipAction(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 14)).frame(width: 28, height: 28)
+        }
+        .buttonStyle(.plain)
+        .help(L10n.tr(title))
+        .accessibilityLabel(L10n.tr(title))
+        .disabled(!engine.canFlipSelection)
+    }
     private func action(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(L10n.tr(title), systemImage: symbol).font(.system(size: 12)).padding(.horizontal, 7).padding(.vertical, 6)
