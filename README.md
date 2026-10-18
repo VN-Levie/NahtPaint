@@ -39,6 +39,8 @@ Build a Universal app for both Apple Silicon and Intel with `./scripts/build-app
 
 The bottom bar shows the canvas **width × height in pixels** and its estimated **PNG file size**. The size updates after edits settle; apps receiving clipboard images may choose a different format.
 
+**Scroll the mouse wheel over the canvas to zoom** around the pointer (5–800%). Hold **Shift** while scrolling to pan. Two-finger trackpad scrolling pans normally; hold **⌘** to zoom with the trackpad. Zoom changes the view without resizing image pixels.
+
 Use **Return** to place a floating selection and **Escape** to cancel it. Text is edited directly on the canvas; **⌘Return** finishes typing. Ordinary copy/paste shortcuts edit text while its editor has focus. Confirmed text remains a movable, editable foreground object in the open document. Use Select or Text to drag it, or double-click it to edit again. Escape cancels a re-edit. Copying or saving PNG/JPEG composites text without discarding the live text objects.
 
 ## Tools and files

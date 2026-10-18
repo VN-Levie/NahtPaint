@@ -212,6 +212,7 @@ struct EditorView: View {
             Picker(L10n.tr("Zoom"), selection: $engine.zoom) {
                 ForEach(zoomLevels, id: \.self) { value in Text("\(Int((value * 100).rounded()))%").tag(value) }
             }.labelsHidden().frame(width: 76)
+                .help(L10n.tr("Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad."))
             Button { controller.zoomIn() } label: { Image(systemName: "plus.magnifyingglass") }.buttonStyle(.plain).help(L10n.tr("Zoom in"))
         }
         .font(.system(size: 11)).foregroundStyle(.secondary)

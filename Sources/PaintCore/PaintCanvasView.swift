@@ -34,8 +34,41 @@ public struct PaintCanvasView: NSViewRepresentable {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); updateCanvas() }
     override func layout() { super.layout(); updateCanvas() }
+    override func scrollWheel(with event: NSEvent) {
+        // Keep trackpad navigation and an explicit mouse-wheel pan gesture available.
+        let trackpadGesture = !event.phase.isEmpty || !event.momentumPhase.isEmpty
+        guard !event.modifierFlags.contains(.shift),
+              !trackpadGesture || event.modifierFlags.contains(.command),
+              event.scrollingDeltaY != 0,
+              abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) else {
+            super.scrollWheel(with: event)
+            return
+        }
+        // A changed coordinate system mid-drag would move artwork or place a stroke incorrectly.
+        guard !board.isExpanding, !canvas.isDraggingCanvasContent else { return }
+        let delta = event.scrollingDeltaY * (event.isDirectionInvertedFromDevice ? -1 : 1)
+        guard delta.isFinite else { return }
+        let oldZoom = max(0.05, min(16, canvas.engine.zoom))
+        let steps = max(-4, min(4, event.hasPreciseScrollingDeltas ? delta / 100 : delta))
+        let newZoom = max(0.05, min(8, oldZoom * pow(1.25, steps)))
+        guard abs(newZoom - canvas.engine.zoom) > 0.000001 else { return }
+
+        let imagePoint = canvas.convert(event.locationInWindow, from: nil)
+        let pixelPoint = CGPoint(x: imagePoint.x / oldZoom, y: imagePoint.y / oldZoom)
+        let clipPoint = contentView.convert(event.locationInWindow, from: nil)
+        let viewportOffset = CGPoint(x: clipPoint.x - contentView.bounds.minX,
+                                     y: clipPoint.y - contentView.bounds.minY)
+        canvas.engine.zoom = newZoom
+        updateCanvas()
+        let origin = CGPoint(x: canvas.frame.minX + pixelPoint.x * newZoom - viewportOffset.x,
+                             y: canvas.frame.minY + pixelPoint.y * newZoom - viewportOffset.y)
+        let proposed = CGRect(origin: origin, size: contentView.bounds.size)
+        contentView.scroll(to: contentView.constrainBoundsRect(proposed).origin)
+        reflectScrolledClipView(contentView)
+    }
     func updateCanvas() {
         setAccessibilityLabel(L10n.tr("Image canvas scroll area"))
+        setAccessibilityHelp(L10n.tr("Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad."))
         let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         backgroundColor = NSColor(calibratedWhite: dark ? 0.105 : 0.78, alpha: 1)
         if board.isExpanding {
@@ -299,6 +332,10 @@ public struct PaintCanvasView: NSViewRepresentable {
     private var tracking: NSTrackingArea?
     private var hoverPoint: CGPoint?
     private enum DragMode { case none, draw, select, move, moveText, resize(Int) }
+    var isDraggingCanvasContent: Bool {
+        if case .none = dragging { return false }
+        return true
+    }
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     override var isOpaque: Bool { true }

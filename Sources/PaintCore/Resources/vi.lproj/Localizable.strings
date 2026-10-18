@@ -210,3 +210,4 @@
 "Expand canvas bottom right" = "Mở rộng khung vẽ xuống dưới bên phải";
 "Optimize screenshots" = "Tối ưu ảnh chụp màn hình";
 "Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "Giảm ảnh chụp Retina về 1× khi dán hoặc kéo vào. Tắt để giữ nguyên số pixel.";
+"Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad." = "Cuộn chuột để thu phóng. Giữ Shift và cuộn để di chuyển. Giữ ⌘ và cuộn trên trackpad để thu phóng.";

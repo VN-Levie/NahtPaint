@@ -210,3 +210,4 @@
 "Expand canvas bottom right" = "向右下扩展画布";
 "Optimize screenshots" = "优化屏幕截图";
 "Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "粘贴或拖入时将 Retina 截图缩小至 1×。关闭可保留原始像素。";
+"Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad." = "滚动鼠标滚轮缩放。按住 Shift 滚动以平移。按住 ⌘ 在触控板上滚动以缩放。";
