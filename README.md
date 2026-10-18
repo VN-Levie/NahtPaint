@@ -6,7 +6,7 @@ A small native macOS paint app inspired by the direct, familiar workflow of Wind
 
 ## Download and install
 
-Download **NahtPaint-0.3.0-macOS-universal.zip** from the [latest GitHub Release](https://github.com/VN-Levie/NahtPaint/releases/latest). The app supports **Apple Silicon and Intel Macs running macOS 14 or later**. No Xcode or additional runtime installation is needed.
+Download **NahtPaint-0.4.0-macOS-universal.zip** from the [latest GitHub Release](https://github.com/VN-Levie/NahtPaint/releases/latest). The app supports **Apple Silicon and Intel Macs running macOS 14 or later**. No Xcode or additional runtime installation is needed.
 
 1. Download the app ZIP under **Assets**, extract it, and drag **NahtPaint.app** into **Applications**. No GitHub account is required.
 2. If upgrading from NathPaint, turn off **Launch at login** in the old app if enabled, then quit it and move **NathPaint.app** out of **Applications** before installing **NahtPaint.app**. Existing preferences are preserved; enable Launch at login again in NahtPaint if needed.
