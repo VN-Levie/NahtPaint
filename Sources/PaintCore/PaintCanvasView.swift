@@ -11,11 +11,12 @@ public struct PaintCanvasView: NSViewRepresentable {
     }
 }
 
-@MainActor private final class CanvasScrollView: NSScrollView {
+@MainActor final class CanvasScrollView: NSScrollView {
     let canvas: NativePaintView
-    let board = CanvasBoardView()
+    let board: CanvasBoardView
     init(engine: PaintEngine) {
         canvas = NativePaintView(engine: engine)
+        board = CanvasBoardView(canvas: canvas)
         super.init(frame: .zero)
         hasVerticalScroller = true; hasHorizontalScroller = true
         autohidesScrollers = true
@@ -23,7 +24,6 @@ public struct PaintCanvasView: NSViewRepresentable {
         backgroundColor = NSColor(calibratedWhite: 0.78, alpha: 1)
         borderType = .noBorder
         documentView = board
-        board.addSubview(canvas)
         canvas.wantsLayer = true
         canvas.layer?.shadowColor = NSColor.black.cgColor
         canvas.layer?.shadowOpacity = 0.16
@@ -38,19 +38,249 @@ public struct PaintCanvasView: NSViewRepresentable {
         setAccessibilityLabel(L10n.tr("Image canvas scroll area"))
         let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         backgroundColor = NSColor(calibratedWhite: dark ? 0.105 : 0.78, alpha: 1)
+        if board.isExpanding {
+            if board.expansionMatchesDocument { return }
+            board.cancelExpansion()
+            return
+        }
         let zoom = max(0.05, min(16, canvas.engine.zoom))
         let size = CGSize(width: CGFloat(canvas.engine.width) * zoom, height: CGFloat(canvas.engine.height) * zoom)
-        let documentSize = CGSize(width: max(contentSize.width, size.width + 48), height: max(contentSize.height, size.height + 48))
+        let documentSize = CGSize(width: max(contentSize.width, size.width + 72), height: max(contentSize.height, size.height + 72))
         if board.frame.size != documentSize { board.setFrameSize(documentSize) }
-        let frame = CGRect(x: max(24, (documentSize.width - size.width) / 2), y: max(24, (documentSize.height - size.height) / 2), width: size.width, height: size.height)
+        let frame = CGRect(x: max(36, (documentSize.width - size.width) / 2), y: max(36, (documentSize.height - size.height) / 2), width: size.width, height: size.height)
         if canvas.frame != frame { canvas.frame = frame }
+        board.updateHandles()
         canvas.needsDisplay = true
         canvas.updateTextAppearance()
     }
 }
 
-private final class CanvasBoardView: NSView {
+@MainActor final class CanvasBoardView: NSView {
+    let canvas: NativePaintView
+    private var preview: CanvasExpansionPreviewView!
+    private(set) var handles: [CanvasExpansionHandleView] = []
+    private struct ExpansionDrag {
+        var handle: CanvasExpansionHandle
+        var start: CGPoint
+        var originalFrame: CGRect
+        var width: Int
+        var height: Int
+        var zoom: CGFloat
+        var renderVersion: Int
+        var padding = CanvasExpansionPadding()
+    }
+    private var expansion: ExpansionDrag?
+    var isExpanding: Bool { expansion != nil }
+    var expansionMatchesDocument: Bool {
+        guard let expansion else { return true }
+        return expansion.width == canvas.engine.width && expansion.height == canvas.engine.height
+            && expansion.zoom == max(0.05, min(16, canvas.engine.zoom))
+            && expansion.renderVersion == canvas.engine.renderVersion
+    }
     override var isFlipped: Bool { true }
+
+    init(canvas: NativePaintView) {
+        self.canvas = canvas
+        super.init(frame: .zero)
+        addSubview(canvas)
+        preview = CanvasExpansionPreviewView(board: self)
+        addSubview(preview)
+        handles = CanvasExpansionHandle.allCases.map { CanvasExpansionHandleView(handle: $0, board: self) }
+        handles.forEach { addSubview($0) }
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func updateHandles() {
+        preview.frame = bounds
+        preview.needsDisplay = true
+        let rect = expansion.map { $0.padding.rect(from: $0.originalFrame, zoom: $0.zoom) } ?? canvas.frame
+        for handle in handles {
+            let point = handle.handle.center(outside: rect)
+            handle.frame = CGRect(x: point.x - 10, y: point.y - 10, width: 20, height: 20)
+            handle.updateAccessibility()
+            handle.needsDisplay = true
+            window?.invalidateCursorRects(for: handle)
+        }
+        needsDisplay = true
+    }
+
+    func beginExpansion(_ handle: CanvasExpansionHandle, event: NSEvent) {
+        guard let scroll = enclosingScrollView as? CanvasScrollView else { return }
+        canvas.engine.finishEditing()
+        scroll.updateCanvas()
+        let zoom = max(0.05, min(16, canvas.engine.zoom))
+        let point = convert(event.locationInWindow, from: nil)
+        let frame = canvas.frame
+        // Reserve workspace before tracking. Shifting the scroll origin by the same
+        // amount keeps the artwork still on screen; its frame is then frozen for the drag.
+        let horizontalRoom = CGFloat(8192 - canvas.engine.width) * zoom + 36
+        let verticalRoom = CGFloat(8192 - canvas.engine.height) * zoom + 36
+        let shift = CGPoint(x: max(0, horizontalRoom - frame.minX), y: max(0, verticalRoom - frame.minY))
+        let shiftedFrame = frame.offsetBy(dx: shift.x, dy: shift.y)
+        let scrollOrigin = scroll.contentView.bounds.origin
+        expansion = ExpansionDrag(handle: handle, start: CGPoint(x: point.x + shift.x, y: point.y + shift.y),
+                                  originalFrame: shiftedFrame, width: canvas.engine.width, height: canvas.engine.height,
+                                  zoom: zoom, renderVersion: canvas.engine.renderVersion)
+        setFrameSize(CGSize(width: max(bounds.width + shift.x, shiftedFrame.maxX + horizontalRoom),
+                            height: max(bounds.height + shift.y, shiftedFrame.maxY + verticalRoom)))
+        canvas.frame = shiftedFrame
+        scroll.contentView.scroll(to: CGPoint(x: scrollOrigin.x + shift.x, y: scrollOrigin.y + shift.y))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        updateHandles()
+    }
+
+    func dragExpansion(with event: NSEvent) {
+        guard var drag = expansion else { return }
+        guard expansionMatchesDocument else { cancelExpansion(); return }
+        if event.type == .leftMouseDragged { autoscroll(with: event) }
+        let point = convert(event.locationInWindow, from: nil)
+        drag.padding = .dragging(drag.handle, translation: CGPoint(x: point.x - drag.start.x, y: point.y - drag.start.y),
+                                 zoom: drag.zoom, width: drag.width, height: drag.height)
+        expansion = drag
+        updateHandles()
+    }
+
+    func endExpansion(with event: NSEvent) {
+        guard expansion != nil else { return }
+        dragExpansion(with: event)
+        guard let drag = expansion else { return }
+        finishExpansion(padding: drag.padding)
+    }
+
+    func cancelExpansion() {
+        guard expansion != nil else { return }
+        finishExpansion(padding: CanvasExpansionPadding())
+        canvas.engine.report("Canvas expansion cancelled")
+    }
+
+    func expandAccessibly(_ handle: CanvasExpansionHandle) -> Bool {
+        let direction = CGPoint(x: handle.extendsLeft ? -32 : handle.extendsRight ? 32 : 0,
+                                y: handle.extendsTop ? -32 : handle.extendsBottom ? 32 : 0)
+        let padding = CanvasExpansionPadding.dragging(handle, translation: direction, zoom: 1,
+                                                       width: canvas.engine.width, height: canvas.engine.height)
+        guard !padding.isEmpty else { return false }
+        finishExpansion(padding: padding)
+        return true
+    }
+
+    private func finishExpansion(padding: CanvasExpansionPadding) {
+        guard let scroll = enclosingScrollView as? CanvasScrollView else { expansion = nil; return }
+        let visibleOffset = CGPoint(x: canvas.frame.minX - scroll.contentView.bounds.minX,
+                                    y: canvas.frame.minY - scroll.contentView.bounds.minY)
+        expansion = nil
+        var applied = CanvasExpansionPadding()
+        if !padding.isEmpty {
+            do {
+                try canvas.engine.expandCanvas(left: padding.left, top: padding.top, right: padding.right, bottom: padding.bottom)
+                applied = padding
+            } catch { canvas.engine.report(error.localizedDescription) }
+        }
+        scroll.updateCanvas()
+        let zoom = max(0.05, min(16, canvas.engine.zoom))
+        let origin = CGPoint(x: canvas.frame.minX + CGFloat(applied.left) * zoom - visibleOffset.x,
+                             y: canvas.frame.minY + CGFloat(applied.top) * zoom - visibleOffset.y)
+        let proposed = CGRect(origin: origin, size: scroll.contentView.bounds.size)
+        scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(proposed).origin)
+        scroll.reflectScrolledClipView(scroll.contentView)
+        window?.makeFirstResponder(canvas)
+        needsDisplay = true
+    }
+
+    fileprivate func drawExpansionPreview() {
+        guard let drag = expansion else { return }
+        let rect = drag.padding.rect(from: drag.originalFrame, zoom: drag.zoom)
+        let outline = NSBezierPath(rect: rect)
+        outline.lineWidth = 1.5
+        outline.setLineDash([6, 4], count: 2, phase: 0)
+        NSColor.controlAccentColor.setStroke(); outline.stroke()
+        let label = "\(drag.width + drag.padding.left + drag.padding.right) × \(drag.height + drag.padding.top + drag.padding.bottom) px"
+        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
+                                                       .foregroundColor: NSColor.white]
+        let size = (label as NSString).size(withAttributes: attributes)
+        let visible = visibleRect
+        let labelRect = CGRect(x: max(visible.minX + 6, min(rect.midX - size.width / 2 - 7, visible.maxX - size.width - 20)),
+                               y: max(visible.minY + 6, min(rect.maxY + 29, visible.maxY - size.height - 16)),
+                               width: size.width + 14, height: size.height + 8)
+        NSColor.black.withAlphaComponent(0.78).setFill()
+        NSBezierPath(roundedRect: labelRect, xRadius: 5, yRadius: 5).fill()
+        (label as NSString).draw(at: CGPoint(x: labelRect.minX + 7, y: labelRect.minY + 4), withAttributes: attributes)
+    }
+}
+
+@MainActor private final class CanvasExpansionPreviewView: NSView {
+    private weak var board: CanvasBoardView?
+    override var isFlipped: Bool { true }
+    init(board: CanvasBoardView) {
+        self.board = board
+        super.init(frame: .zero)
+        setAccessibilityElement(false)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func draw(_ dirtyRect: NSRect) { board?.drawExpansionPreview() }
+}
+
+@MainActor final class CanvasExpansionHandleView: NSView {
+    let handle: CanvasExpansionHandle
+    private weak var board: CanvasBoardView?
+    override var acceptsFirstResponder: Bool { true }
+    init(handle: CanvasExpansionHandle, board: CanvasBoardView) {
+        self.handle = handle; self.board = board
+        super.init(frame: .zero)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        updateAccessibility()
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    func updateAccessibility() {
+        let title = L10n.tr(handle.label)
+        setAccessibilityLabel(title)
+        setAccessibilityHelp(L10n.tr("Drag outward to add space. Escape cancels."))
+        toolTip = title + " · " + L10n.tr("Drag outward to add space. Escape cancels.")
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        let dot = NSBezierPath(ovalIn: bounds.insetBy(dx: 5, dy: 5))
+        NSColor.controlAccentColor.setFill(); dot.fill()
+        NSColor.white.setStroke(); dot.lineWidth = 1.5; dot.stroke()
+    }
+    private var cursor: NSCursor {
+        switch handle {
+        case .left, .right: return .resizeLeftRight
+        case .top, .bottom: return .resizeUpDown
+        case .topLeft, .bottomRight: return Self.diagonalDownCursor
+        case .topRight, .bottomLeft: return Self.diagonalUpCursor
+        }
+    }
+    private static let diagonalDownCursor = diagonalCursor(down: true)
+    private static let diagonalUpCursor = diagonalCursor(down: false)
+    private static func diagonalCursor(down: Bool) -> NSCursor {
+        let image = NSImage(size: CGSize(width: 20, height: 20), flipped: false) { _ in
+            let path = NSBezierPath()
+            func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x, y: down ? 20 - y : y) }
+            path.move(to: point(4, 4)); path.line(to: point(16, 16))
+            path.move(to: point(4, 10)); path.line(to: point(4, 4)); path.line(to: point(10, 4))
+            path.move(to: point(10, 16)); path.line(to: point(16, 16)); path.line(to: point(16, 10))
+            path.lineCapStyle = .round; path.lineJoinStyle = .round
+            NSColor.white.setStroke(); path.lineWidth = 4; path.stroke()
+            NSColor.black.setStroke(); path.lineWidth = 2; path.stroke()
+            return true
+        }
+        return NSCursor(image: image, hotSpot: CGPoint(x: 10, y: 10))
+    }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: cursor) }
+    override func mouseDown(with event: NSEvent) {
+        board?.beginExpansion(handle, event: event)
+        window?.makeFirstResponder(self)
+        cursor.set()
+    }
+    override func mouseDragged(with event: NSEvent) { cursor.set(); board?.dragExpansion(with: event) }
+    override func mouseUp(with event: NSEvent) { board?.endExpansion(with: event) }
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { board?.cancelExpansion(); return }
+        if event.keyCode == 36 || event.keyCode == 49 { _ = accessibilityPerformPress(); return }
+        super.keyDown(with: event)
+    }
+    override func accessibilityPerformPress() -> Bool { board?.expandAccessibly(handle) ?? false }
 }
 
 @MainActor final class NativePaintView: NSView, NSTextViewDelegate {
@@ -92,8 +322,8 @@ private final class CanvasBoardView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     private func fitPastedImageInViewport() {
         guard let viewport = enclosingScrollView?.contentSize, viewport.width > 0, viewport.height > 0 else { return }
-        engine.zoom = max(0.05, min(1, (viewport.width - 48) / CGFloat(engine.width),
-                                   (viewport.height - 48) / CGFloat(engine.height)))
+        engine.zoom = max(0.05, min(1, (viewport.width - 72) / CGFloat(engine.width),
+                                   (viewport.height - 72) / CGFloat(engine.height)))
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -405,10 +635,7 @@ private final class CanvasBoardView: NSView {
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { true }
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         let board = sender.draggingPasteboard
-        let image: NSImage?
-        if let urls = board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
-           let url = urls.first { image = NSImage(contentsOf: url) }
-        else { image = NSImage(pasteboard: board) }
+        let image = ImageImport.image(from: board, optimizeScreenshots: engine.optimizeScreenshots)
         guard let image else { engine.report("Drop an image file here"); return false }
         do {
             try engine.pasteImage(image)

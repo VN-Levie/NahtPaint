@@ -195,3 +195,18 @@
 "Flip Vertical" = "垂直翻转";
 "Selection flipped horizontally" = "已水平翻转选区";
 "Selection flipped vertically" = "已垂直翻转选区";
+
+"Canvas width × height in pixels" = "画布宽度 × 高度（像素）";
+"PNG size of the entire canvas. Clipboard apps may use a different format." = "整个画布的 PNG 大小。粘贴时，应用可能使用其他格式。";
+"Drag outward to add space. Escape cancels." = "向外拖动以添加空间。按 Esc 取消。";
+"Canvas expansion cancelled" = "已取消扩展画布";
+"Expand canvas left" = "向左扩展画布";
+"Expand canvas right" = "向右扩展画布";
+"Expand canvas top" = "向上扩展画布";
+"Expand canvas bottom" = "向下扩展画布";
+"Expand canvas top left" = "向左上扩展画布";
+"Expand canvas top right" = "向右上扩展画布";
+"Expand canvas bottom left" = "向左下扩展画布";
+"Expand canvas bottom right" = "向右下扩展画布";
+"Optimize screenshots" = "优化屏幕截图";
+"Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "粘贴或拖入时将 Retina 截图缩小至 1×。关闭可保留原始像素。";

@@ -19,6 +19,7 @@ struct EditorView: View {
     @ObservedObject var controller: AppController
     @ObservedObject var engine: PaintEngine
     @ObservedObject private var preferences = AppPreferences.shared
+    @State private var pngBytes: Int?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,6 +41,13 @@ struct EditorView: View {
         .foregroundStyle(ink)
         .sheet(isPresented: $controller.resizePresented) {
             ResizeSheet(engine: engine, scale: controller.scaleOnResize)
+        }
+        .task(id: engine.renderVersion) {
+            pngBytes = nil
+            do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+            let bytes = await engine.pngByteCount()
+            guard !Task.isCancelled else { return }
+            pngBytes = bytes
         }
     }
 
@@ -194,6 +202,11 @@ struct EditorView: View {
             Text(engine.status).lineLimit(1).truncationMode(.tail)
             Spacer()
             Text("\(engine.width) × \(engine.height) px").monospacedDigit()
+                .help(L10n.tr("Canvas width × height in pixels"))
+                .fixedSize()
+            Text(pngBytes.map { "PNG ≈ " + ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "PNG …")
+                .monospacedDigit().fixedSize()
+                .help(L10n.tr("PNG size of the entire canvas. Clipboard apps may use a different format."))
             Divider().frame(height: 13)
             Button { controller.zoomOut() } label: { Image(systemName: "minus.magnifyingglass") }.buttonStyle(.plain).help(L10n.tr("Zoom out"))
             Picker(L10n.tr("Zoom"), selection: $engine.zoom) {

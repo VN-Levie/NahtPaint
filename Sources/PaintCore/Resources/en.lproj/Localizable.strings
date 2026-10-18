@@ -195,3 +195,18 @@
 "Flip Vertical" = "Flip Vertical";
 "Selection flipped horizontally" = "Selection flipped horizontally";
 "Selection flipped vertically" = "Selection flipped vertically";
+
+"Canvas width × height in pixels" = "Canvas width × height in pixels";
+"PNG size of the entire canvas. Clipboard apps may use a different format." = "PNG size of the entire canvas. Clipboard apps may use a different format.";
+"Drag outward to add space. Escape cancels." = "Drag outward to add space. Escape cancels.";
+"Canvas expansion cancelled" = "Canvas expansion cancelled";
+"Expand canvas left" = "Expand canvas left";
+"Expand canvas right" = "Expand canvas right";
+"Expand canvas top" = "Expand canvas top";
+"Expand canvas bottom" = "Expand canvas bottom";
+"Expand canvas top left" = "Expand canvas top left";
+"Expand canvas top right" = "Expand canvas top right";
+"Expand canvas bottom left" = "Expand canvas bottom left";
+"Expand canvas bottom right" = "Expand canvas bottom right";
+"Optimize screenshots" = "Optimize screenshots";
+"Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel.";

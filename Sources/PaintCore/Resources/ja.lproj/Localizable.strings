@@ -195,3 +195,18 @@
 "Flip Vertical" = "上下反転";
 "Selection flipped horizontally" = "選択範囲を左右反転しました";
 "Selection flipped vertically" = "選択範囲を上下反転しました";
+
+"Canvas width × height in pixels" = "キャンバスの幅 × 高さ（ピクセル）";
+"PNG size of the entire canvas. Clipboard apps may use a different format." = "キャンバス全体の PNG サイズです。ペースト先のアプリは別の形式を使う場合があります。";
+"Drag outward to add space. Escape cancels." = "外側へドラッグして余白を追加。Esc でキャンセル。";
+"Canvas expansion cancelled" = "キャンバスの拡張をキャンセルしました";
+"Expand canvas left" = "キャンバスを左へ拡張";
+"Expand canvas right" = "キャンバスを右へ拡張";
+"Expand canvas top" = "キャンバスを上へ拡張";
+"Expand canvas bottom" = "キャンバスを下へ拡張";
+"Expand canvas top left" = "キャンバスを左上へ拡張";
+"Expand canvas top right" = "キャンバスを右上へ拡張";
+"Expand canvas bottom left" = "キャンバスを左下へ拡張";
+"Expand canvas bottom right" = "キャンバスを右下へ拡張";
+"Optimize screenshots" = "スクリーンショットを最適化";
+"Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "ペーストやドロップ時に Retina スクリーンショットを 1× に縮小します。オフにすると元のピクセル数を保持します。";

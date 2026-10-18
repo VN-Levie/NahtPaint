@@ -195,3 +195,18 @@
 "Flip Vertical" = "Lật dọc";
 "Selection flipped horizontally" = "Đã lật ngang vùng chọn";
 "Selection flipped vertically" = "Đã lật dọc vùng chọn";
+
+"Canvas width × height in pixels" = "Chiều rộng × chiều cao khung vẽ (pixel)";
+"PNG size of the entire canvas. Clipboard apps may use a different format." = "Dung lượng PNG của toàn bộ khung vẽ. Ứng dụng nhận ảnh có thể dùng định dạng khác.";
+"Drag outward to add space. Escape cancels." = "Kéo ra ngoài để thêm khoảng trống. Esc để hủy.";
+"Canvas expansion cancelled" = "Đã hủy mở rộng khung vẽ";
+"Expand canvas left" = "Mở rộng khung vẽ sang trái";
+"Expand canvas right" = "Mở rộng khung vẽ sang phải";
+"Expand canvas top" = "Mở rộng khung vẽ lên trên";
+"Expand canvas bottom" = "Mở rộng khung vẽ xuống dưới";
+"Expand canvas top left" = "Mở rộng khung vẽ lên trên bên trái";
+"Expand canvas top right" = "Mở rộng khung vẽ lên trên bên phải";
+"Expand canvas bottom left" = "Mở rộng khung vẽ xuống dưới bên trái";
+"Expand canvas bottom right" = "Mở rộng khung vẽ xuống dưới bên phải";
+"Optimize screenshots" = "Tối ưu ảnh chụp màn hình";
+"Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "Giảm ảnh chụp Retina về 1× khi dán hoặc kéo vào. Tắt để giữ nguyên số pixel.";

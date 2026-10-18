@@ -21,10 +21,12 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
 
     override init() {
         super.init()
-        pasteOptionsObservation = Publishers.CombineLatest(AppPreferences.shared.$imagePasteMode, AppPreferences.shared.$fitViewAfterPasting)
-            .sink { [weak self] mode, fitView in
+        pasteOptionsObservation = Publishers.CombineLatest3(AppPreferences.shared.$imagePasteMode, AppPreferences.shared.$fitViewAfterPasting,
+                                                            AppPreferences.shared.$optimizeScreenshots)
+            .sink { [weak self] mode, fitView, optimize in
                 self?.engine.imagePasteMode = mode
                 self?.engine.fitViewAfterPasting = fitView
+                self?.engine.optimizeScreenshots = optimize
             }
         languageObservation = AppPreferences.shared.$language.dropFirst().sink { [weak self] _ in
             DispatchQueue.main.async {
@@ -175,7 +177,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         } catch { showError(error.localizedDescription) }
     }
     func newFromClipboard() {
-        guard let images = NSPasteboard.general.readObjects(forClasses: [NSImage.self]) as? [NSImage], let image = images.first else {
+        guard let image = ImageImport.image(from: .general, optimizeScreenshots: AppPreferences.shared.optimizeScreenshots) else {
             showError(L10n.tr("Copy an image first, then choose New from Clipboard.")); return
         }
         guard confirmDiscard() else { return }

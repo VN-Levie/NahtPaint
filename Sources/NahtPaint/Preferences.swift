@@ -76,6 +76,9 @@ final class AppPreferences: ObservableObject {
     @Published var fitViewAfterPasting: Bool {
         didSet { UserDefaults.standard.set(fitViewAfterPasting, forKey: "fitViewAfterPasting") }
     }
+    @Published var optimizeScreenshots: Bool {
+        didSet { UserDefaults.standard.set(optimizeScreenshots, forKey: "optimizeScreenshots") }
+    }
     @Published var clearCanvasOnCloseOrQuit: Bool {
         didSet {
             UserDefaults.standard.set(clearCanvasOnCloseOrQuit, forKey: "clearCanvasOnCloseOrQuit")
@@ -89,6 +92,7 @@ final class AppPreferences: ObservableObject {
         clearCanvasOnCloseOrQuit = UserDefaults.standard.bool(forKey: "clearCanvasOnCloseOrQuit")
         imagePasteMode = ImagePasteMode(rawValue: UserDefaults.standard.string(forKey: "imagePasteMode") ?? "") ?? .automatic
         fitViewAfterPasting = UserDefaults.standard.object(forKey: "fitViewAfterPasting") as? Bool ?? true
+        optimizeScreenshots = UserDefaults.standard.object(forKey: "optimizeScreenshots") as? Bool ?? true
         theme = AppTheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .system
         language = AppLanguage.current
         quickOpen = QuickOpenMode(rawValue: UserDefaults.standard.string(forKey: "quickOpen") ?? "") ?? .menuOnly
@@ -124,6 +128,9 @@ struct PreferencesView: View {
                 ForEach(AppTheme.allCases) { theme in Text(theme.title).tag(theme) }
             }.pickerStyle(.segmented)
             Divider().padding(.vertical, 4)
+            Toggle(L10n.tr("Optimize screenshots"), isOn: $preferences.optimizeScreenshots)
+            Text(L10n.tr("Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel."))
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Picker(L10n.tr("Pasting large images"), selection: $preferences.imagePasteMode) {
                 ForEach(ImagePasteMode.allCases) { mode in Text(mode.title).tag(mode) }
             }

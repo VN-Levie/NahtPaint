@@ -98,6 +98,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
     @Published public var zoom: CGFloat = 1
     @Published public var imagePasteMode: ImagePasteMode = .automatic
     @Published public var fitViewAfterPasting = true
+    @Published public var optimizeScreenshots = true
     @Published public private(set) var width: Int
     @Published public private(set) var height: Int
     @Published public private(set) var canUndo = false
@@ -353,6 +354,11 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         return result
     }
     public func canvasImage() -> NSImage { displayBitmap().nsImage() }
+    /// Inspect the visible canvas without committing a selection or ending text input.
+    public func pngByteCount() async -> Int? {
+        guard !Task.isCancelled else { return nil }
+        return await PNGSizeEncoder.shared.byteCount(of: displayBitmap())
+    }
     public func commitSelection() {
         selectedTextID = nil
         guard let active = selection else { refresh(); return }
@@ -425,6 +431,42 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         }
         self.width = width; self.height = height
         record(before); status = L10n.tr(scaleImage ? "Image resized" : "Canvas resized")
+    }
+    /// Add space without resampling pixels or flattening editable text.
+    public func expandCanvas(left: Int = 0, top: Int = 0, right: Int = 0, bottom: Int = 0) throws {
+        // Validate each inset before addition, including callers outside the drag UI.
+        guard [left, top, right, bottom].allSatisfy({ (0...8192).contains($0) }) else {
+            throw PaintError.invalidSize
+        }
+        let newWidth = width + left + right, newHeight = height + top + bottom
+        try Bitmap.validate(newWidth, newHeight)
+        guard newWidth != width || newHeight != height else { return }
+        finishEditing()
+        // Preserve pending pixels beyond the old edges: placing the selection on the
+        // old canvas alone would clip the very content this expansion can reveal.
+        let pending = selection.flatMap { !$0.isCrop && !$0.isUnchanged ? $0 : nil }
+        let unplacedRaster = bitmap
+        commitSelection()
+        let before = snapshot()
+        let sourceRaster = pending == nil ? bitmap : unplacedRaster
+        var expanded = Bitmap(width: newWidth, height: newHeight)
+        for y in 0..<height {
+            let source = y * width * 4, target = ((y + top) * newWidth + left) * 4
+            expanded.pixels.replaceSubrange(target..<(target + width * 4),
+                                           with: sourceRaster.pixels[source..<(source + width * 4)])
+        }
+        if let pending {
+            expanded.composite(pending.image, in: pending.rect.offsetBy(dx: CGFloat(left), dy: CGFloat(top)),
+                               flippedHorizontally: pending.flippedHorizontally,
+                               flippedVertically: pending.flippedVertically,
+                               replacing: pending.originalRect == pending.rect)
+        }
+        for index in textObjects.indices {
+            textObjects[index].position.x += CGFloat(left)
+            textObjects[index].position.y += CGFloat(top)
+        }
+        bitmap = expanded; width = newWidth; height = newHeight
+        record(before); status = L10n.tr("Canvas resized")
     }
     public func undo() {
         finishEditing()
@@ -539,7 +581,7 @@ public enum PaintTool: String, CaseIterable, Identifiable {
             } catch { status = error.localizedDescription }
             return
         }
-        if let image = NSImage(pasteboard: board) {
+        if let image = ImageImport.image(from: board, optimizeScreenshots: optimizeScreenshots) {
             do { try pasteImage(image) } catch { status = error.localizedDescription }
             return
         }
