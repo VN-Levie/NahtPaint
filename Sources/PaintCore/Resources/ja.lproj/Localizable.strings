@@ -211,3 +211,7 @@
 "Optimize screenshots" = "スクリーンショットを最適化";
 "Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "ペーストやドロップ時に Retina スクリーンショットを 1× に縮小します。オフにすると元のピクセル数を保持します。";
 "Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad." = "マウスホイールでズーム。Shift を押しながらスクロールで移動。トラックパッドは ⌘ を押しながらスクロールでズーム。";
+"New Window" = "新規ウインドウ";
+"Could not start NahtPaint" = "NahtPaint を起動できませんでした";
+"Could not open the request in the running NahtPaint" = "実行中の NahtPaint で開けませんでした";
+"Try again from its menu bar." = "メニューバーのアイコンから再試行してください。";

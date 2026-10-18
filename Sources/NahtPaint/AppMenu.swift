@@ -4,17 +4,17 @@ import PaintCore
 /// Native menus keep the existing commands available without an automatic SwiftUI window scene.
 @MainActor
 final class AppMenu {
-    private let controller: AppController
+    private let workspace: EditorWorkspace
     private var actions: [MenuAction] = []
 
-    init(controller: AppController) {
-        self.controller = controller
+    init(workspace: EditorWorkspace? = nil) {
+        self.workspace = workspace ?? .shared
         rebuild()
     }
 
     func rebuild() {
         actions.removeAll()
-        let controller = self.controller
+        let workspace = self.workspace
         let main = NSMenu()
         func submenu(_ title: String) -> NSMenu {
             let item = NSMenuItem(title: L10n.tr(title), action: nil, keyEquivalent: "")
@@ -25,7 +25,7 @@ final class AppMenu {
         let app = submenu("NahtPaint")
         add("About NahtPaint", to: app) { NSApp.orderFrontStandardAboutPanel(nil) }
         app.addItem(.separator())
-        add("Settings…", key: ",", to: app) { controller.showPreferences() }
+        add("Settings…", key: ",", to: app) { workspace.activeController.showPreferences() }
         app.addItem(.separator())
         let services = NSMenu(title: L10n.tr("Services"))
         let serviceItem = NSMenuItem(title: services.title, action: nil, keyEquivalent: "")
@@ -38,38 +38,38 @@ final class AppMenu {
         add("Quit NahtPaint", key: "q", to: app) { NSApp.terminate(nil) }
 
         let file = submenu("File")
-        add("New", key: "n", to: file) { controller.newDocument() }
-        add("Open…", key: "o", to: file) { controller.openDocument() }
-        add("New from Clipboard", key: "n", modifiers: [.command, .shift], to: file) { controller.newFromClipboard() }
+        add("New Window", key: "n", to: file) { workspace.newDocument() }
+        add("Open…", key: "o", to: file) { workspace.activeController.openDocument() }
+        add("New from Clipboard", key: "n", modifiers: [.command, .shift], to: file) { workspace.activeController.newFromClipboard() }
         file.addItem(.separator())
         add("Close", key: "w", to: file, enabled: { NSApp.keyWindow != nil }) { NSApp.keyWindow?.performClose(nil) }
-        add("Save", key: "s", to: file) { controller.save() }
-        add("Save As…", key: "s", modifiers: [.command, .shift], to: file) { controller.save(asNew: true) }
+        add("Save", key: "s", to: file) { workspace.activeController.save() }
+        add("Save As…", key: "s", modifiers: [.command, .shift], to: file) { workspace.activeController.save(asNew: true) }
 
         let edit = submenu("Edit")
-        add("Undo", key: "z", to: edit) { controller.undo() }
-        add("Redo", key: "z", modifiers: [.command, .shift], to: edit) { controller.redo() }
+        add("Undo", key: "z", to: edit) { workspace.activeController.undo() }
+        add("Redo", key: "z", modifiers: [.command, .shift], to: edit) { workspace.activeController.redo() }
         edit.addItem(.separator())
-        add("Cut", key: "x", to: edit) { controller.cut() }
-        add("Copy", key: "c", to: edit) { controller.copy() }
-        add("Paste", key: "v", to: edit) { controller.paste() }
-        add("Copy Entire Image", key: "c", modifiers: [.command, .shift], to: edit) { controller.copyAll() }
+        add("Cut", key: "x", to: edit) { workspace.activeController.cut() }
+        add("Copy", key: "c", to: edit) { workspace.activeController.copy() }
+        add("Paste", key: "v", to: edit) { workspace.activeController.paste() }
+        add("Copy Entire Image", key: "c", modifiers: [.command, .shift], to: edit) { workspace.activeController.copyAll() }
         edit.addItem(.separator())
-        add("Select All", key: "a", to: edit) { controller.selectAll() }
-        add("Deselect", key: "d", to: edit) { controller.engine.commitSelection() }
+        add("Select All", key: "a", to: edit) { workspace.activeController.selectAll() }
+        add("Deselect", key: "d", to: edit) { workspace.activeController.engine.commitSelection() }
 
         let view = submenu("View")
-        add("Zoom In", key: "+", to: view) { controller.zoomIn() }
-        add("Zoom Out", key: "-", to: view) { controller.zoomOut() }
-        add("Actual Pixels", key: "0", to: view) { controller.engine.zoom = 1 }
+        add("Zoom In", key: "+", to: view) { workspace.activeController.zoomIn() }
+        add("Zoom Out", key: "-", to: view) { workspace.activeController.zoomOut() }
+        add("Actual Pixels", key: "0", to: view) { workspace.activeController.engine.zoom = 1 }
 
         let image = submenu("Image")
-        add("Flip Horizontal", to: image, enabled: { controller.engine.canFlipSelection }) { controller.engine.flipSelectionHorizontally() }
-        add("Flip Vertical", to: image, enabled: { controller.engine.canFlipSelection }) { controller.engine.flipSelectionVertically() }
+        add("Flip Horizontal", to: image, enabled: { workspace.activeController.engine.canFlipSelection }) { workspace.activeController.engine.flipSelectionHorizontally() }
+        add("Flip Vertical", to: image, enabled: { workspace.activeController.engine.canFlipSelection }) { workspace.activeController.engine.flipSelectionVertically() }
         image.addItem(.separator())
-        add("Crop to Selection", key: "k", to: image, enabled: { controller.engine.hasSelection }) { controller.engine.cropToSelection() }
-        add("Resize Image…", to: image) { controller.presentResize(scale: true) }
-        add("Canvas Size…", to: image) { controller.presentResize(scale: false) }
+        add("Crop to Selection", key: "k", to: image, enabled: { workspace.activeController.engine.hasSelection }) { workspace.activeController.engine.cropToSelection() }
+        add("Resize Image…", to: image) { workspace.activeController.presentResize(scale: true) }
+        add("Canvas Size…", to: image) { workspace.activeController.presentResize(scale: false) }
 
         let windows = submenu("Window")
         add("Minimize", key: "m", to: windows, enabled: { NSApp.keyWindow?.isMiniaturizable == true }) { NSApp.keyWindow?.miniaturize(nil) }

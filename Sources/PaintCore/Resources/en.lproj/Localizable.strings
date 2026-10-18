@@ -211,3 +211,7 @@
 "Optimize screenshots" = "Optimize screenshots";
 "Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel.";
 "Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad." = "Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad.";
+"New Window" = "New Window";
+"Could not start NahtPaint" = "Could not start NahtPaint";
+"Could not open the request in the running NahtPaint" = "Could not open the request in the running NahtPaint";
+"Try again from its menu bar." = "Try again from its menu bar.";

@@ -6,14 +6,18 @@ import PaintCore
 
 @MainActor
 final class AppController: NSObject, ObservableObject, NSWindowDelegate {
-    static let shared = AppController()
+    static var shared: AppController { EditorWorkspace.shared.activeController }
+    weak var workspace: EditorWorkspace?
+    var documentNumber = 1
+    var displayName: String {
+        fileURL?.lastPathComponent ?? (documentNumber == 1 ? L10n.tr("Untitled") : "\(L10n.tr("Untitled")) \(documentNumber)")
+    }
     let engine = PaintEngine()
     @Published var fileURL: URL?
     @Published var resizePresented = false
     @Published var scaleOnResize = true
     private(set) var window: NSWindow?
-    var onExplicitOpen: (() -> Void)?
-    private var preferencesWindow: NSWindow?
+    private static var preferencesWindow: NSWindow?
     private var systemLocaleObservation: AnyCancellable?
     private var observation: AnyCancellable?
     private var languageObservation: AnyCancellable?
@@ -34,7 +38,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
                 self.engine.finishEditing()
                 self.engine.refreshLanguage()
                 self.syncTitle()
-                self.preferencesWindow?.title = "NahtPaint — " + L10n.tr("Settings…")
+                Self.preferencesWindow?.title = "NahtPaint — " + L10n.tr("Settings…")
                 self.objectWillChange.send()
             }
         }
@@ -43,7 +47,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
                 guard AppPreferences.shared.language == .system, let self else { return }
                 AppPreferences.shared.objectWillChange.send()
                 self.engine.refreshLanguage(); self.syncTitle()
-                self.preferencesWindow?.title = "NahtPaint — " + L10n.tr("Settings…")
+                Self.preferencesWindow?.title = "NahtPaint — " + L10n.tr("Settings…")
             }
         }
         observation = engine.objectWillChange.sink { [weak self] _ in
@@ -56,16 +60,17 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         window.delegate = self
         window.isReleasedWhenClosed = false
         // Preserve the saved window geometry from releases before the display-name correction.
-        window.setFrameAutosaveName("NathPaint.Editor")
+        if documentNumber == 1 { window.setFrameAutosaveName("NathPaint.Editor") }
+        window.isExcludedFromWindowsMenu = false
         syncTitle()
     }
     private func syncTitle() {
-        window?.title = "\(fileURL?.lastPathComponent ?? L10n.tr("Untitled")) — NahtPaint"
+        window?.title = "\(displayName) — NahtPaint"
         window?.isDocumentEdited = engine.isDirty
         window?.representedURL = fileURL
     }
     func showWindow() {
-        onExplicitOpen?()
+        workspace?.onExplicitOpen?()
         if window == nil {
             let editor = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 1160, height: 820),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -78,22 +83,25 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
             attach(editor)
         }
         NSApp.activate(ignoringOtherApps: true)
+        workspace?.activate(self)
+        window?.deminiaturize(nil)
         window?.makeKeyAndOrderFront(nil)
     }
+    func windowDidBecomeKey(_ notification: Notification) { workspace?.activate(self) }
     func showPreferences() {
-        onExplicitOpen?()
+        workspace?.onExplicitOpen?()
         LoginItemController.shared.refresh()
         NSApp.activate(ignoringOtherApps: true)
-        if preferencesWindow == nil {
+        if Self.preferencesWindow == nil {
             let host = NSHostingController(rootView: PreferencesView())
             let settings = NSWindow(contentViewController: host)
             settings.styleMask = [.titled, .closable]
             settings.isReleasedWhenClosed = false
             settings.title = "NahtPaint — " + L10n.tr("Settings…")
             settings.center()
-            preferencesWindow = settings
+            Self.preferencesWindow = settings
         }
-        preferencesWindow?.makeKeyAndOrderFront(nil)
+        Self.preferencesWindow?.makeKeyAndOrderFront(nil)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         // Keep the document and window alive while the app lives in the menu bar.
@@ -119,7 +127,8 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         AppPreferences.shared.clearCanvasOnCloseOrQuit = alert.runModal() == .alertSecondButtonReturn
     }
     private var textEditor: NSTextView? {
-        guard let text = NSApp.keyWindow?.firstResponder as? NSTextView, text.isEditable else { return nil }
+        guard NSApp.keyWindow === window,
+              let text = window?.firstResponder as? NSTextView, text.isEditable else { return nil }
         return text
     }
     func deleteCanvasSelection() -> Bool {
@@ -152,10 +161,7 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         }
     }
     func newDocument() {
-        guard confirmDiscard() else { return }
-        engine.newCanvas(width: 960, height: 640)
-        fileURL = nil
-        syncTitle(); showWindow()
+        (workspace ?? .shared).newDocument()
     }
     func openDocument() {
         showWindow()
@@ -163,30 +169,18 @@ final class AppController: NSObject, ObservableObject, NSWindowDelegate {
         panel.title = L10n.tr("Open Image")
         panel.prompt = L10n.tr("Open")
         panel.allowedContentTypes = [.image]
-        panel.allowsMultipleSelection = false
-        if panel.runModal() == .OK, let url = panel.url { openURL(url) }
+        panel.allowsMultipleSelection = true
+        if panel.runModal() == .OK { panel.urls.forEach { openURL($0) } }
     }
     func openURL(_ url: URL) {
-        guard let image = NSImage(contentsOf: url), image.isValid else {
-            showError(L10n.tr("This file could not be opened as an image.")); return
-        }
-        guard confirmDiscard() else { return }
-        do {
-            try engine.loadImage(image)
-            fileURL = url; engine.markSaved(); syncTitle(); showWindow()
-        } catch { showError(error.localizedDescription) }
+        (workspace ?? .shared).openURL(url)
     }
     func newFromClipboard() {
         guard let image = ImageImport.image(from: .general, optimizeScreenshots: AppPreferences.shared.optimizeScreenshots) else {
             showError(L10n.tr("Copy an image first, then choose New from Clipboard.")); return
         }
-        guard confirmDiscard() else { return }
         do {
-            try engine.loadImage(image)
-            fileURL = nil
-            // Clipboard images are new, unsaved documents.
-            engine.markUnsaved()
-            syncTitle(); showWindow()
+            try (workspace ?? .shared).openImage(image, unsaved: true)
         } catch { showError(error.localizedDescription) }
     }
 

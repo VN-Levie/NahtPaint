@@ -61,7 +61,7 @@ final class AppPreferences: ObservableObject {
         }
     }
     @Published var language: AppLanguage {
-        willSet { if newValue != language { AppController.shared.engine.finishEditing() } }
+        willSet { if newValue != language { EditorWorkspace.shared.finishEditing() } }
         didSet { UserDefaults.standard.set(language.rawValue, forKey: "appLanguage") }
     }
     @Published var visibility: AppVisibility {

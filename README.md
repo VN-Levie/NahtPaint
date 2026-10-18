@@ -55,11 +55,12 @@ Use **Return** to place a floating selection and **Escape** to cancel it. Text i
 - Preset and custom colors, brush width, text size, shape fill and zoom.
 - Image resizing and canvas sizing through the Image menu.
 - Image-file drag and drop, Open, Save and Save As. PNG retains alpha; JPEG composites transparency onto white.
-- Bounded undo/redo history. Quit/New/Open prompt for unsaved changes.
+- Multiple independent editor windows share one menu-bar icon. Use **File → New Window** (**⌘N**) or **New Window** in the menu-bar menu. Open and New from Clipboard create a separate document; the menu-bar menu lists every document, including hidden windows.
+- Each window has its own bounded undo/redo history. Quit checks all documents for unsaved changes.
 
 ![Highlighter controls and a yellow stroke over readable black text](docs/screenshots/highlighter.jpg)
 
-The first version edits one document at a time. The raster drawing has editable text objects above it. PNG/JPEG files are flattened images; reopening them cannot recover editable text. There is no editable project file format yet. Changes stay local. By default, closing the window keeps the current document in memory; choose **Quit NahtPaint** to exit. The first launch asks whether to keep that behavior or clear the canvas automatically on close/quit. There is no recovery after a forced termination, so save important work.
+Each editor has a raster drawing with editable text objects above it. PNG/JPEG files are flattened images; reopening them cannot recover editable text. There is no editable project file format yet. Changes stay local. By default, closing a window keeps its document in memory; reopen it from the menu-bar document list, or choose **Quit NahtPaint** to exit all windows. The first launch asks whether to keep that behavior or clear the canvas automatically on close/quit. There is no recovery after a forced termination, so save important work.
 
 ## Menu bar and preferences
 

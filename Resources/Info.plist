@@ -9,6 +9,8 @@
 	<key>CFBundleIdentifier</key>
 	<!-- Retain the installed app identity so preferences and macOS integrations survive the rename. -->
 	<string>com.levie.NathPaint</string>
+	<key>NahtPaintInstanceGroup</key>
+	<string>com.levie.NathPaint</string>
 	<key>CFBundleExecutable</key>
 	<string>NahtPaint</string>
 	<key>CFBundlePackageType</key>

@@ -211,3 +211,7 @@
 "Optimize screenshots" = "Tối ưu ảnh chụp màn hình";
 "Reduce Retina screenshots to 1× when pasting or dropping them. Turn off to keep every pixel." = "Giảm ảnh chụp Retina về 1× khi dán hoặc kéo vào. Tắt để giữ nguyên số pixel.";
 "Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad." = "Cuộn chuột để thu phóng. Giữ Shift và cuộn để di chuyển. Giữ ⌘ và cuộn trên trackpad để thu phóng.";
+"New Window" = "Cửa sổ mới";
+"Could not start NahtPaint" = "Không thể khởi động NahtPaint";
+"Could not open the request in the running NahtPaint" = "Không thể mở yêu cầu trong NahtPaint đang chạy";
+"Try again from its menu bar." = "Hãy thử lại từ icon trên thanh menu.";

@@ -20,7 +20,7 @@ enum NahtPaintApp {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem?
+    private(set) var statusItem: NSStatusItem?
     private var editorKeyMonitor: Any?
     private var preferencesObservation: AnyCancellable?
     private var backgroundLogin = true
@@ -29,10 +29,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var appMenu: AppMenu?
     private var languageObservation: AnyCancellable?
     private var localeObservation: AnyCancellable?
+    private var instanceCoordinator: SingleInstanceCoordinating?
+    private var startupError: Error?
+    private var pendingOpenURLs: [URL] = []
+    private var forwardingLaunch = false
+    private var secondaryFinished = false
+    // Injected only by lifecycle tests; normal launches terminate the empty secondary process.
+    var finishSecondaryLaunch: () -> Void = { NSApp.terminate(nil) }
+
+    init(instanceCoordinator: SingleInstanceCoordinating? = nil) {
+        self.instanceCoordinator = instanceCoordinator
+        super.init()
+    }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Avoid appearing in the Dock until the launch reason is known.
         NSApp.setActivationPolicy(.accessory)
+        if instanceCoordinator == nil { instanceCoordinator = SingleInstanceCoordinator() }
+        do { _ = try instanceCoordinator?.start() }
+        catch { startupError = error }
         NSAppleEventManager.shared().setEventHandler(self,
             andSelector: #selector(handleOpenApplication(_:withReplyEvent:)),
             forEventClass: kCoreEventClass, andEventID: kAEOpenApplication)
@@ -60,11 +75,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func finishLaunching() {
-        AppController.shared.onExplicitOpen = { [weak self] in self?.leaveBackgroundLogin() }
+        guard !startupReady else { return }
+        if let startupError {
+            let alert = NSAlert()
+            alert.messageText = L10n.tr("Could not start NahtPaint")
+            alert.informativeText = startupError.localizedDescription
+            alert.runModal()
+            completeSecondaryLaunch()
+            return
+        }
+        if instanceCoordinator?.isPrimary == false {
+            // Finder file-open events are delivered during startup. Drain them before
+            // forwarding, without ever constructing a second status item or editor.
+            DispatchQueue.main.async { [weak self] in self?.forwardSecondaryLaunch() }
+            return
+        }
+        EditorWorkspace.shared.onExplicitOpen = { [weak self] in self?.leaveBackgroundLogin() }
         NSApp.appearance = AppPreferences.shared.theme.appearance
         editorKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let controller = AppController.shared
-            guard NSApp.keyWindow === controller.window,
+            guard let window = controller.window, NSApp.keyWindow === window,
                   !event.modifierFlags.contains(.option) else { return event }
             let command = event.modifierFlags.contains(.command)
             let control = event.modifierFlags.contains(.control)
@@ -101,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferencesObservation = AppPreferences.shared.$visibility.sink { [weak self] mode in
             DispatchQueue.main.async { self?.applyVisibility(mode) }
         }
-        appMenu = AppMenu(controller: AppController.shared)
+        appMenu = AppMenu()
         languageObservation = AppPreferences.shared.$language.dropFirst().sink { [weak self] _ in
             DispatchQueue.main.async { self?.appMenu?.rebuild() }
         }
@@ -111,7 +141,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         applyVisibility(AppPreferences.shared.visibility)
         startupReady = true
-        applyInitialOpenEvent()
+        if pendingOpenURLs.isEmpty {
+            applyInitialOpenEvent()
+        } else {
+            initialLoginLaunch = nil
+            let urls = pendingOpenURLs; pendingOpenURLs.removeAll()
+            urls.forEach { EditorWorkspace.shared.openURL($0) }
+        }
+        instanceCoordinator?.onRequest = { request in
+            switch request {
+            case .showWindow: AppController.shared.showWindow()
+            case .openURLs(let urls): urls.forEach { EditorWorkspace.shared.openURL($0) }
+            }
+        }
+    }
+
+    func forwardSecondaryLaunch() {
+        guard let coordinator = instanceCoordinator, !coordinator.isPrimary,
+              !forwardingLaunch, !secondaryFinished else { return }
+        if initialLoginLaunch == true && pendingOpenURLs.isEmpty {
+            completeSecondaryLaunch(); return
+        }
+        let urls = pendingOpenURLs; pendingOpenURLs.removeAll()
+        let request: SingleInstanceCoordinator.Request = urls.isEmpty ? .showWindow : .openURLs(urls)
+        forwardingLaunch = true
+        coordinator.forward(request) { [weak self] accepted in
+            guard let self else { return }
+            self.forwardingLaunch = false
+            if accepted {
+                if self.pendingOpenURLs.isEmpty { self.completeSecondaryLaunch() }
+                else { self.forwardSecondaryLaunch() }
+                return
+            }
+            // The owner can exit between discovery and delivery. Reacquire ownership
+            // before declaring failure; never kill or replace the existing process.
+            coordinator.invalidate()
+            do {
+                if try coordinator.start() {
+                    self.pendingOpenURLs = urls + self.pendingOpenURLs
+                    self.initialLoginLaunch = urls.isEmpty ? false : nil
+                    self.finishLaunching()
+                    return
+                }
+            } catch { self.startupError = error }
+            let alert = NSAlert()
+            alert.messageText = L10n.tr("Could not open the request in the running NahtPaint")
+            alert.informativeText = L10n.tr("Try again from its menu bar.")
+            alert.runModal()
+            self.completeSecondaryLaunch()
+        }
+    }
+    private func completeSecondaryLaunch() {
+        guard !secondaryFinished else { return }
+        secondaryFinished = true
+        finishSecondaryLaunch()
     }
 
     private func applyVisibility(_ mode: AppVisibility) {
@@ -168,8 +251,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         let open = menu.addItem(withTitle: L10n.tr("Open NahtPaint"), action: #selector(openEditor), keyEquivalent: "")
         open.target = self
+        let newWindow = menu.addItem(withTitle: L10n.tr("New Window"), action: #selector(newEditor), keyEquivalent: "")
+        newWindow.target = self
         let paste = menu.addItem(withTitle: L10n.tr("New from Clipboard"), action: #selector(clipboardDocument), keyEquivalent: "")
         paste.target = self
+        let documents = EditorWorkspace.shared.documents
+        if !documents.isEmpty {
+            menu.addItem(.separator())
+            for (index, document) in documents.enumerated() {
+                let title = document.displayName + (document.engine.isDirty ? " •" : "")
+                let entry = menu.addItem(withTitle: title, action: #selector(showDocument(_:)), keyEquivalent: "")
+                entry.target = self; entry.tag = index
+                entry.state = document.window?.isVisible == true ? .on : .off
+            }
+        }
         menu.addItem(.separator())
         let visibility = NSMenuItem(title: L10n.tr("Show App In"), action: nil, keyEquivalent: "")
         let submenu = NSMenu()
@@ -205,27 +300,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc private func openPreferences() { AppController.shared.showPreferences() }
     @objc private func openEditor() { AppController.shared.showWindow() }
-    @objc private func clipboardDocument() { AppController.shared.showWindow(); AppController.shared.newFromClipboard() }
+    @objc private func newEditor() { EditorWorkspace.shared.newDocument() }
+    @objc private func showDocument(_ sender: NSMenuItem) {
+        let documents = EditorWorkspace.shared.documents
+        guard documents.indices.contains(sender.tag) else { return }
+        documents[sender.tag].showWindow()
+    }
+    @objc private func clipboardDocument() { AppController.shared.newFromClipboard() }
     @objc private func quitApp() { NSApp.terminate(nil) }
     func applicationWillTerminate(_ notification: Notification) {
+        instanceCoordinator?.invalidate()
         if let editorKeyMonitor { NSEvent.removeMonitor(editorKeyMonitor) }
         preferencesObservation = nil
         languageObservation = nil
         localeObservation = nil
         if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
+        statusItem = nil
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if AppPreferences.shared.clearCanvasOnCloseOrQuit {
-            AppController.shared.clearCanvas()
-            return .terminateNow
+        if instanceCoordinator?.isPrimary == false || startupError != nil { return .terminateNow }
+        let canQuit = EditorWorkspace.shared.confirmQuit(clearAutomatically: AppPreferences.shared.clearCanvasOnCloseOrQuit) { document in
+            document.showWindow()
+            return document.confirmDiscard()
         }
-        return AppController.shared.confirmDiscard() ? .terminateNow : .terminateCancel
+        return canQuit ? .terminateNow : .terminateCancel
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if instanceCoordinator?.isPrimary == false {
+            initialLoginLaunch = false
+            forwardSecondaryLaunch()
+            return false
+        }
+        guard startupReady else { initialLoginLaunch = false; return false }
         AppController.shared.showWindow(); return false
     }
     func application(_ sender: NSApplication, open urls: [URL]) {
-        if let url = urls.first { AppController.shared.openURL(url) }
+        guard startupReady else { pendingOpenURLs.append(contentsOf: urls); return }
+        urls.forEach { EditorWorkspace.shared.openURL($0) }
     }
 }
