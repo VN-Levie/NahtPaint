@@ -1,16 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-BUILD_ARGS=()
+BUILD_ARGS=(-c release)
 case "${1:-}" in
   "") ;;
-  --universal) BUILD_ARGS=(--arch arm64 --arch x86_64) ;;
+  --universal) BUILD_ARGS+=(--arch arm64 --arch x86_64) ;;
   *) printf 'Usage: %s [--universal]\n' "$0" >&2; exit 2 ;;
 esac
-swift build -c release "${BUILD_ARGS[@]}"
-APP="$PWD/build/NahtPaint.app"
+swift build "${BUILD_ARGS[@]}"
+APP="${NAHTPAINT_APP_OUTPUT:-$PWD/build/NahtPaint.app}"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-BIN_DIR="$(swift build -c release "${BUILD_ARGS[@]}" --show-bin-path)"
+BIN_DIR="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)"
 cp "$BIN_DIR/NahtPaint" "$APP/Contents/MacOS/NahtPaint"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 if [[ -d Resources/NahtPaint.icon ]]; then
