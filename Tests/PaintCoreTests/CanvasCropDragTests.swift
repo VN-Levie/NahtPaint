@@ -117,4 +117,50 @@ final class CanvasCropDragTests: XCTestCase {
             XCTAssertFalse(engine.canUndo)
         }
     }
+
+    func testReleasedEdgeDragKeepsRetainedArtworkStillAndIgnoresScrolling() async throws {
+        try await MainActor.run {
+            _ = NSApplication.shared
+            let engine = PaintEngine(width: 600, height: 400)
+            let scroll = CanvasScrollView(engine: engine)
+            let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 1100, height: 760),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = scroll
+            defer { window.contentView = nil }
+            scroll.frame = CGRect(x: 0, y: 0, width: 1100, height: 760)
+            scroll.layoutSubtreeIfNeeded(); scroll.updateCanvas()
+            func mouse(_ type: NSEvent.EventType, _ point: CGPoint) throws -> NSEvent {
+                try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0,
+                                                windowNumber: window.windowNumber, context: nil, eventNumber: 1,
+                                                clickCount: 1, pressure: 1))
+            }
+            func pan() throws -> NSEvent {
+                let event = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2,
+                                                  wheel1: 40, wheel2: 0, wheel3: 0))
+                event.setIntegerValueField(.scrollWheelEventMomentumPhase, value: 2)
+                return try XCTUnwrap(NSEvent(cgEvent: event))
+            }
+            // Bottom edge up by 100 pt, then top edge down by 50 pt.
+            for (side, dy) in [(CanvasExpansionHandle.bottom, CGFloat(100)), (.top, CGFloat(-50))] {
+                let topLeftBefore = scroll.canvas.convert(CGPoint(x: 0, y: side == .top ? 50 : 0), to: nil)
+                let handle = try XCTUnwrap(scroll.board.handles.first { $0.handle == side })
+                let start = handle.convert(CGPoint(x: handle.bounds.midX, y: handle.bounds.midY), to: nil)
+                handle.mouseDown(with: try mouse(.leftMouseDown, start))
+                let during = scroll.canvas.convert(CGPoint.zero, to: nil)
+                scroll.scrollWheel(with: try pan())
+                XCTAssertEqual(scroll.canvas.convert(CGPoint.zero, to: nil), during, "Momentum must not move the canvas mid-drag")
+                let end = CGPoint(x: start.x, y: start.y + dy)
+                handle.mouseDragged(with: try mouse(.leftMouseDragged, end))
+                handle.mouseUp(with: try mouse(.leftMouseUp, end))
+                let topLeftAfter = scroll.canvas.convert(CGPoint.zero, to: nil)
+                XCTAssertEqual(topLeftAfter.x, topLeftBefore.x, accuracy: 0.5)
+                XCTAssertEqual(topLeftAfter.y, topLeftBefore.y, accuracy: 0.5, "Kept artwork must not jump back to the centre")
+            }
+            XCTAssertEqual(engine.height, 250)
+            engine.zoom = 0.5
+            scroll.updateCanvas()
+            XCTAssertNil(scroll.pinnedPlacement, "A zoom change recentres as before")
+        }
+    }
 }

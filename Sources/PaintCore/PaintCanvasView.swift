@@ -14,6 +14,13 @@ public struct PaintCanvasView: NSViewRepresentable {
 @MainActor final class CanvasScrollView: NSScrollView {
     let canvas: NativePaintView
     let board: CanvasBoardView
+    /// Where the canvas sat on screen after an edge drag, so the kept artwork does not jump
+    /// back to the centre. It only applies while the document size and zoom stay the same.
+    struct PinnedPlacement: Equatable {
+        var origin: CGPoint
+        var width: Int, height: Int, zoom: CGFloat
+    }
+    var pinnedPlacement: PinnedPlacement?
     init(engine: PaintEngine) {
         canvas = NativePaintView(engine: engine)
         board = CanvasBoardView(canvas: canvas)
@@ -35,6 +42,8 @@ public struct PaintCanvasView: NSViewRepresentable {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); updateCanvas() }
     override func layout() { super.layout(); updateCanvas() }
     override func scrollWheel(with event: NSEvent) {
+        // Trackpad momentum from an earlier swipe would otherwise drift the canvas under an edge drag.
+        if board.isExpanding { return }
         // Plain scrolling pans; only ⌘-scroll (mouse wheel or trackpad) zooms.
         guard event.modifierFlags.contains(.command),
               !event.modifierFlags.contains(.shift),
@@ -79,7 +88,18 @@ public struct PaintCanvasView: NSViewRepresentable {
         let size = CGSize(width: CGFloat(canvas.engine.width) * zoom, height: CGFloat(canvas.engine.height) * zoom)
         let documentSize = CGSize(width: max(contentSize.width, size.width + 72), height: max(contentSize.height, size.height + 72))
         if board.frame.size != documentSize { board.setFrameSize(documentSize) }
-        let frame = CGRect(x: max(36, (documentSize.width - size.width) / 2), y: max(36, (documentSize.height - size.height) / 2), width: size.width, height: size.height)
+        var frame = CGRect(x: max(36, (documentSize.width - size.width) / 2), y: max(36, (documentSize.height - size.height) / 2), width: size.width, height: size.height)
+        if let pin = pinnedPlacement, pin.width == canvas.engine.width, pin.height == canvas.engine.height, pin.zoom == zoom {
+            // Keep the pinned spot on any axis where the canvas fits, without letting it leave the margins.
+            if size.width + 72 <= contentSize.width {
+                frame.origin.x = min(max(36, pin.origin.x), contentSize.width - size.width - 36)
+            }
+            if size.height + 72 <= contentSize.height {
+                frame.origin.y = min(max(36, pin.origin.y), contentSize.height - size.height - 36)
+            }
+        } else {
+            pinnedPlacement = nil
+        }
         if canvas.frame != frame { canvas.frame = frame }
         board.updateHandles()
         canvas.needsDisplay = true
@@ -221,8 +241,12 @@ public struct PaintCanvasView: NSViewRepresentable {
                 applied = padding
             } catch { canvas.engine.report(error.localizedDescription) }
         }
-        scroll.updateCanvas()
         let zoom = max(0.05, min(16, canvas.engine.zoom))
+        // Keep the retained artwork exactly where it was on screen.
+        scroll.pinnedPlacement = .init(origin: CGPoint(x: visibleOffset.x - CGFloat(applied.left) * zoom,
+                                                       y: visibleOffset.y - CGFloat(applied.top) * zoom),
+                                       width: canvas.engine.width, height: canvas.engine.height, zoom: zoom)
+        scroll.updateCanvas()
         let origin = CGPoint(x: canvas.frame.minX + CGFloat(applied.left) * zoom - visibleOffset.x,
                              y: canvas.frame.minY + CGFloat(applied.top) * zoom - visibleOffset.y)
         let proposed = CGRect(origin: origin, size: scroll.contentView.bounds.size)
