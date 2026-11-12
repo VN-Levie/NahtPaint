@@ -60,6 +60,10 @@ final class AppMenu {
 
         let view = submenu("View")
         add("Zoom In", key: "+", to: view) { workspace.activeController.zoomIn() }
+        // ⌘= without Shift also zooms in, matching the unshifted key on most layouts.
+        let zoomInAlias = add("Zoom In", key: "=", to: view) { workspace.activeController.zoomIn() }
+        zoomInAlias.isHidden = true
+        zoomInAlias.allowsKeyEquivalentWhenHidden = true
         add("Zoom Out", key: "-", to: view) { workspace.activeController.zoomOut() }
         add("Actual Pixels", key: "0", to: view) { workspace.activeController.engine.zoom = 1 }
 
@@ -80,14 +84,16 @@ final class AppMenu {
         NSApp.mainMenu = main
     }
 
+    @discardableResult
     private func add(_ title: String, key: String = "", modifiers: NSEvent.ModifierFlags = .command,
-                     to menu: NSMenu, enabled: @escaping () -> Bool = { true }, action: @escaping () -> Void) {
+                     to menu: NSMenu, enabled: @escaping () -> Bool = { true }, action: @escaping () -> Void) -> NSMenuItem {
         let target = MenuAction(enabled: enabled, action: action)
         actions.append(target)
         let item = NSMenuItem(title: L10n.tr(title), action: #selector(MenuAction.invoke(_:)), keyEquivalent: key)
         item.target = target
         item.keyEquivalentModifierMask = modifiers
         menu.addItem(item)
+        return item
     }
 }
 

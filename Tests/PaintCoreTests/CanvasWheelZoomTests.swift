@@ -10,10 +10,10 @@ final class CanvasWheelZoomTests: XCTestCase {
             defer { window.contentView = nil }
             let pointer = Self.pointer(in: scroll)
             let originalPixel = Self.pixel(at: pointer, in: scroll)
-            scroll.scrollWheel(with: try Self.wheel(y: 1, at: pointer))
+            scroll.scrollWheel(with: try Self.wheel(y: 1, modifiers: .maskCommand, at: pointer))
             XCTAssertEqual(engine.zoom, 1.25, accuracy: 0.0001)
             Self.assertPoint(Self.pixel(at: pointer, in: scroll), equals: originalPixel)
-            scroll.scrollWheel(with: try Self.wheel(y: -1, at: pointer))
+            scroll.scrollWheel(with: try Self.wheel(y: -1, modifiers: .maskCommand, at: pointer))
             XCTAssertEqual(engine.zoom, 1, accuracy: 0.0001)
             Self.assertPoint(Self.pixel(at: pointer, in: scroll), equals: originalPixel)
             XCTAssertFalse(window.isVisible)
@@ -39,14 +39,14 @@ final class CanvasWheelZoomTests: XCTestCase {
             defer { window.contentView = nil }
             let pointer = Self.pointer(in: scroll)
             let originalPixel = Self.pixel(at: pointer, in: scroll)
-            let forward = try Self.wheel(y: 3, precise: true, at: pointer)
+            let forward = try Self.wheel(y: 3, precise: true, modifiers: .maskCommand, at: pointer)
             XCTAssertTrue(forward.hasPreciseScrollingDeltas)
             XCTAssertTrue(forward.phase.isEmpty)
             scroll.scrollWheel(with: forward)
             XCTAssertGreaterThan(engine.zoom, 1)
             XCTAssertLessThan(engine.zoom, 1.25, "A small precise delta must be finer than a wheel notch")
             Self.assertPoint(Self.pixel(at: pointer, in: scroll), equals: originalPixel)
-            scroll.scrollWheel(with: try Self.wheel(y: -3, precise: true, at: pointer))
+            scroll.scrollWheel(with: try Self.wheel(y: -3, precise: true, modifiers: .maskCommand, at: pointer))
             XCTAssertEqual(engine.zoom, 1, accuracy: 0.0001)
             Self.assertPoint(Self.pixel(at: pointer, in: scroll), equals: originalPixel)
         }
@@ -61,7 +61,7 @@ final class CanvasWheelZoomTests: XCTestCase {
             for (start, delta, expected): (CGFloat, Int32, CGFloat) in [(7.9, 1, 8), (8, 1, 8), (0.051, -1, 0.05), (0.05, -1, 0.05)] {
                 engine.zoom = start
                 scroll.updateCanvas()
-                scroll.scrollWheel(with: try Self.wheel(y: delta, at: Self.pointer(in: scroll)))
+                scroll.scrollWheel(with: try Self.wheel(y: delta, modifiers: .maskCommand, at: Self.pointer(in: scroll)))
                 XCTAssertEqual(engine.zoom, expected, accuracy: 0.0001)
             }
             XCTAssertEqual(engine.width, 1600)
@@ -87,7 +87,7 @@ final class CanvasWheelZoomTests: XCTestCase {
             let pixels = engine.bitmap.pixels
             let undoBefore = engine.canUndo
             let renderVersion = engine.renderVersion
-            scroll.scrollWheel(with: try Self.wheel(y: 1, at: Self.pointer(in: scroll)))
+            scroll.scrollWheel(with: try Self.wheel(y: 1, modifiers: .maskCommand, at: Self.pointer(in: scroll)))
             XCTAssertEqual(engine.zoom, 1.25, accuracy: 0.0001)
             XCTAssertEqual(engine.selection?.rect, selection.rect)
             XCTAssertEqual(engine.selection?.image.pixels, selection.image.pixels)
@@ -104,19 +104,21 @@ final class CanvasWheelZoomTests: XCTestCase {
         }
     }
 
-    func testShiftHorizontalAndTrackpadScrollingDoNotZoom() async throws {
+    func testPlainShiftHorizontalAndTrackpadScrollingDoNotZoom() async throws {
         try await MainActor.run {
             let (engine, scroll, window) = Self.fixture()
             defer { window.contentView = nil }
             let pointer = Self.pointer(in: scroll)
             let events = [
+                try Self.wheel(y: 1, at: pointer),
+                try Self.wheel(y: 3, precise: true, at: pointer),
                 try Self.wheel(y: 1, modifiers: .maskShift, at: pointer),
                 try Self.wheel(y: 0, x: 1, at: pointer),
                 try Self.wheel(y: 10, precise: true, phase: 2, at: pointer),
                 try Self.wheel(y: 10, precise: true, momentum: 2, at: pointer)
             ]
-            XCTAssertFalse(events[2].phase.isEmpty)
-            XCTAssertFalse(events[3].momentumPhase.isEmpty)
+            XCTAssertFalse(events[4].phase.isEmpty)
+            XCTAssertFalse(events[5].momentumPhase.isEmpty)
             for event in events {
                 scroll.scrollWheel(with: event)
                 XCTAssertEqual(engine.zoom, 1, "Normal panning gestures must retain the current zoom")
@@ -142,10 +144,10 @@ final class CanvasWheelZoomTests: XCTestCase {
                 engine.tool = tool
                 let pointer = Self.pointer(in: scroll)
                 scroll.canvas.mouseDown(with: try Self.mouse(.leftMouseDown, at: pointer, window: window))
-                scroll.scrollWheel(with: try Self.wheel(y: 1, at: pointer))
+                scroll.scrollWheel(with: try Self.wheel(y: 1, modifiers: .maskCommand, at: pointer))
                 XCTAssertEqual(engine.zoom, 1, "Changing scale midway through a drag would change image coordinates")
                 scroll.canvas.mouseUp(with: try Self.mouse(.leftMouseUp, at: pointer, window: window))
-                scroll.scrollWheel(with: try Self.wheel(y: 1, at: pointer))
+                scroll.scrollWheel(with: try Self.wheel(y: 1, modifiers: .maskCommand, at: pointer))
                 XCTAssertEqual(engine.zoom, 1.25, accuracy: 0.0001)
             }
         }
@@ -158,7 +160,7 @@ final class CanvasWheelZoomTests: XCTestCase {
             let handle = try XCTUnwrap(scroll.board.handles.first { $0.handle == .right })
             let start = handle.convert(CGPoint(x: handle.bounds.midX, y: handle.bounds.midY), to: nil)
             handle.mouseDown(with: try Self.mouse(.leftMouseDown, at: start, window: window))
-            scroll.scrollWheel(with: try Self.wheel(y: 1, at: Self.pointer(in: scroll)))
+            scroll.scrollWheel(with: try Self.wheel(y: 1, modifiers: .maskCommand, at: Self.pointer(in: scroll)))
             XCTAssertEqual(engine.zoom, 1)
             XCTAssertTrue(scroll.board.isExpanding)
             XCTAssertEqual(engine.width, 1600)
@@ -236,7 +238,7 @@ private final class InvertedWheelEvent: NSEvent {
     override var locationInWindow: NSPoint { wheelLocation }
     override var isDirectionInvertedFromDevice: Bool { true }
     override var hasPreciseScrollingDeltas: Bool { false }
-    override var modifierFlags: NSEvent.ModifierFlags { [] }
+    override var modifierFlags: NSEvent.ModifierFlags { .command }
     override var phase: NSEvent.Phase { [] }
     override var momentumPhase: NSEvent.Phase { [] }
 }

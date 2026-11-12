@@ -35,10 +35,9 @@ public struct PaintCanvasView: NSViewRepresentable {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); updateCanvas() }
     override func layout() { super.layout(); updateCanvas() }
     override func scrollWheel(with event: NSEvent) {
-        // Keep trackpad navigation and an explicit mouse-wheel pan gesture available.
-        let trackpadGesture = !event.phase.isEmpty || !event.momentumPhase.isEmpty
-        guard !event.modifierFlags.contains(.shift),
-              !trackpadGesture || event.modifierFlags.contains(.command),
+        // Plain scrolling pans; only ⌘-scroll (mouse wheel or trackpad) zooms.
+        guard event.modifierFlags.contains(.command),
+              !event.modifierFlags.contains(.shift),
               event.scrollingDeltaY != 0,
               abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) else {
             super.scrollWheel(with: event)
@@ -68,7 +67,7 @@ public struct PaintCanvasView: NSViewRepresentable {
     }
     func updateCanvas() {
         setAccessibilityLabel(L10n.tr("Image canvas scroll area"))
-        setAccessibilityHelp(L10n.tr("Mouse wheel to zoom. Shift-wheel to pan. ⌘-scroll to zoom with a trackpad."))
+        setAccessibilityHelp(L10n.tr("Scroll to pan. Hold ⌘ while scrolling to zoom."))
         let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         backgroundColor = NSColor(calibratedWhite: dark ? 0.105 : 0.78, alpha: 1)
         if board.isExpanding {
