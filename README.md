@@ -32,7 +32,7 @@ Build a Universal app for both Apple Silicon and Intel with `./scripts/build-app
 ## Quick workflow
 
 1. Copy an image, open NahtPaint and press **⌘V**. The first paste sizes a new canvas to the imported image. Detected Retina screenshots are optimized to 1× by default; turn off **Optimize screenshots** in Settings to keep their original pixels. If the clipboard contains text, **⌘V** creates an editable text box immediately; while editing text, it pastes into that same box.
-2. Draw, type, select, move, resize or crop. Drag the dots outside the canvas edges or corners outward to add white space, then paste more images beside each other. Escape cancels a drag; **⌘Z** undoes the expansion.
+2. Draw, type, select, move, resize or crop. Drag the dots outside the canvas edges or corners outward to add white space, then paste more images beside each other. Drag them inward to trim: the edge pauses where blank space ends, so keep dragging to crop into the image. Escape cancels a drag; **⌘Z** undoes it.
 3. Choose **Copy Image** (**⇧⌘C**) to put the entire result on the clipboard, ready to paste into another app. **⌘C** copies the current selection, or the full image if nothing is selected.
 
 **Ctrl+A** is also supported alongside **⌘A**. **Delete** or **Backspace** removes the canvas selection (undo with ⌘Z); while typing, these keys only affect the text editor.

@@ -198,7 +198,7 @@
 
 "Canvas width × height in pixels" = "Chiều rộng × chiều cao khung vẽ (pixel)";
 "PNG size of the entire canvas. Clipboard apps may use a different format." = "Dung lượng PNG của toàn bộ khung vẽ. Ứng dụng nhận ảnh có thể dùng định dạng khác.";
-"Drag outward to add space. Escape cancels." = "Kéo ra ngoài để thêm khoảng trống. Esc để hủy.";
+"Drag outward to add space, or inward to trim. Escape cancels." = "Kéo ra để thêm khoảng trống, kéo vào để cắt. Esc để hủy.";
 "Canvas expansion cancelled" = "Đã hủy mở rộng khung vẽ";
 "Expand canvas left" = "Mở rộng khung vẽ sang trái";
 "Expand canvas right" = "Mở rộng khung vẽ sang phải";
@@ -215,3 +215,6 @@
 "Could not start NahtPaint" = "Không thể khởi động NahtPaint";
 "Could not open the request in the running NahtPaint" = "Không thể mở yêu cầu trong NahtPaint đang chạy";
 "Try again from its menu bar." = "Hãy thử lại từ icon trên thanh menu.";
+"Blank space trimmed · keep dragging to crop" = "Đã cắt hết khoảng trống · kéo tiếp để cắt vào hình";
+"Cropping artwork" = "Đang cắt vào hình";
+"Canvas cropped" = "Đã cắt khung vẽ";

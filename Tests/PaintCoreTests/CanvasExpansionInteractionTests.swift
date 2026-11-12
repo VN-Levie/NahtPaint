@@ -14,9 +14,10 @@ final class CanvasExpansionInteractionTests: XCTestCase {
                 XCTAssertEqual(result.right, handle.extendsRight ? 20 : 0)
                 XCTAssertEqual(result.top, handle.extendsTop ? 30 : 0)
                 XCTAssertEqual(result.bottom, handle.extendsBottom ? 30 : 0)
-                XCTAssertTrue(CanvasExpansionPadding.dragging(handle, translation: CGPoint(x: -x * zoom, y: -y * zoom),
-                                                               zoom: zoom, width: 100, height: 60).isEmpty,
-                              "Dragging inward must never crop the document")
+                let inward = CanvasExpansionPadding.dragging(handle, translation: CGPoint(x: -x * zoom, y: -y * zoom),
+                                                              zoom: zoom, width: 100, height: 60)
+                XCTAssertEqual(inward.left, handle.extendsLeft ? -20 : 0, "Without a blank margin, inward drags crop directly")
+                XCTAssertEqual(inward.bottom, handle.extendsBottom ? -30 : 0)
             }
         }
     }
@@ -31,8 +32,9 @@ final class CanvasExpansionInteractionTests: XCTestCase {
         XCTAssertEqual(corner.right, corner.bottom)
         XCTAssertGreaterThan(corner.right, 800)
         XCTAssertThrowsError(try Bitmap.validate(4001 + corner.right, 4001 + corner.bottom))
-        XCTAssertTrue(CanvasExpansionPadding.dragging(.left, translation: CGPoint(x: -300, y: 0),
-                                                      zoom: 1, width: 6000, height: 4000).isEmpty)
+        XCTAssertEqual(CanvasExpansionPadding.dragging(.left, translation: CGPoint(x: 100_000, y: 0),
+                                                       zoom: 1, width: 6000, height: 4000).left, -5999,
+                       "Cropping always keeps at least one pixel")
     }
 
     func testNativeDragPreviewsWithoutMutationAndCommitsOneUndoAtHalfZoom() async throws {

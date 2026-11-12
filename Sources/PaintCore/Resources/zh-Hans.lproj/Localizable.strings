@@ -198,7 +198,7 @@
 
 "Canvas width × height in pixels" = "画布宽度 × 高度（像素）";
 "PNG size of the entire canvas. Clipboard apps may use a different format." = "整个画布的 PNG 大小。粘贴时，应用可能使用其他格式。";
-"Drag outward to add space. Escape cancels." = "向外拖动以添加空间。按 Esc 取消。";
+"Drag outward to add space, or inward to trim. Escape cancels." = "向外拖动添加空白，向内拖动裁剪。按 Esc 取消。";
 "Canvas expansion cancelled" = "已取消扩展画布";
 "Expand canvas left" = "向左扩展画布";
 "Expand canvas right" = "向右扩展画布";
@@ -215,3 +215,6 @@
 "Could not start NahtPaint" = "无法启动 NahtPaint";
 "Could not open the request in the running NahtPaint" = "无法在正在运行的 NahtPaint 中打开请求";
 "Try again from its menu bar." = "请从菜单栏图标重试。";
+"Blank space trimmed · keep dragging to crop" = "已裁掉空白 · 继续拖动以裁剪图像";
+"Cropping artwork" = "正在裁剪图像";
+"Canvas cropped" = "已裁剪画布";

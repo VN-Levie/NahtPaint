@@ -99,7 +99,13 @@ public struct PaintCanvasView: NSViewRepresentable {
         var height: Int
         var zoom: CGFloat
         var renderVersion: Int
+        var content: CanvasContentInsets
         var padding = CanvasExpansionPadding()
+        /// True once a side moves past the blank margin into the artwork.
+        var cropsArtwork: Bool {
+            -padding.left > content.left || -padding.top > content.top
+                || -padding.right > content.right || -padding.bottom > content.bottom
+        }
     }
     private var expansion: ExpansionDrag?
     var isExpanding: Bool { expansion != nil }
@@ -152,7 +158,9 @@ public struct PaintCanvasView: NSViewRepresentable {
         let scrollOrigin = scroll.contentView.bounds.origin
         expansion = ExpansionDrag(handle: handle, start: CGPoint(x: point.x + shift.x, y: point.y + shift.y),
                                   originalFrame: shiftedFrame, width: canvas.engine.width, height: canvas.engine.height,
-                                  zoom: zoom, renderVersion: canvas.engine.renderVersion)
+                                  zoom: zoom, renderVersion: canvas.engine.renderVersion,
+                                  content: CanvasContentInsets(content: canvas.engine.contentBounds(),
+                                                               width: canvas.engine.width, height: canvas.engine.height))
         setFrameSize(CGSize(width: max(bounds.width + shift.x, shiftedFrame.maxX + horizontalRoom),
                             height: max(bounds.height + shift.y, shiftedFrame.maxY + verticalRoom)))
         canvas.frame = shiftedFrame
@@ -166,8 +174,14 @@ public struct PaintCanvasView: NSViewRepresentable {
         guard expansionMatchesDocument else { cancelExpansion(); return }
         if event.type == .leftMouseDragged { autoscroll(with: event) }
         let point = convert(event.locationInWindow, from: nil)
+        let previous = drag
         drag.padding = .dragging(drag.handle, translation: CGPoint(x: point.x - drag.start.x, y: point.y - drag.start.y),
-                                 zoom: drag.zoom, width: drag.width, height: drag.height)
+                                 zoom: drag.zoom, width: drag.width, height: drag.height, content: drag.content)
+        // A light tick when the edge meets the artwork, and again when it cuts into it.
+        if (drag.padding.holdingAtContent && !previous.padding.holdingAtContent)
+            || (drag.cropsArtwork && !previous.cropsArtwork) {
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        }
         expansion = drag
         updateHandles()
     }
@@ -203,7 +217,7 @@ public struct PaintCanvasView: NSViewRepresentable {
         var applied = CanvasExpansionPadding()
         if !padding.isEmpty {
             do {
-                try canvas.engine.expandCanvas(left: padding.left, top: padding.top, right: padding.right, bottom: padding.bottom)
+                try canvas.engine.adjustCanvasEdges(left: padding.left, top: padding.top, right: padding.right, bottom: padding.bottom)
                 applied = padding
             } catch { canvas.engine.report(error.localizedDescription) }
         }
@@ -221,11 +235,20 @@ public struct PaintCanvasView: NSViewRepresentable {
     fileprivate func drawExpansionPreview() {
         guard let drag = expansion else { return }
         let rect = drag.padding.rect(from: drag.originalFrame, zoom: drag.zoom)
+        if drag.padding.isCropping {
+            // Dim exactly what will be removed.
+            let removed = NSBezierPath(rect: drag.originalFrame)
+            removed.append(NSBezierPath(rect: rect.intersection(drag.originalFrame)))
+            removed.windingRule = .evenOdd
+            NSColor.black.withAlphaComponent(0.45).setFill(); removed.fill()
+        }
         let outline = NSBezierPath(rect: rect)
-        outline.lineWidth = 1.5
+        outline.lineWidth = drag.padding.holdingAtContent ? 2 : 1.5
         outline.setLineDash([6, 4], count: 2, phase: 0)
-        NSColor.controlAccentColor.setStroke(); outline.stroke()
-        let label = "\(drag.width + drag.padding.left + drag.padding.right) × \(drag.height + drag.padding.top + drag.padding.bottom) px"
+        (drag.cropsArtwork ? NSColor.systemOrange : NSColor.controlAccentColor).setStroke(); outline.stroke()
+        var label = "\(drag.width + drag.padding.left + drag.padding.right) × \(drag.height + drag.padding.top + drag.padding.bottom) px"
+        if drag.padding.holdingAtContent { label += " · " + L10n.tr("Blank space trimmed · keep dragging to crop") }
+        else if drag.cropsArtwork { label += " · " + L10n.tr("Cropping artwork") }
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
                                                        .foregroundColor: NSColor.white]
         let size = (label as NSString).size(withAttributes: attributes)
@@ -267,8 +290,8 @@ public struct PaintCanvasView: NSViewRepresentable {
     func updateAccessibility() {
         let title = L10n.tr(handle.label)
         setAccessibilityLabel(title)
-        setAccessibilityHelp(L10n.tr("Drag outward to add space. Escape cancels."))
-        toolTip = title + " · " + L10n.tr("Drag outward to add space. Escape cancels.")
+        setAccessibilityHelp(L10n.tr("Drag outward to add space, or inward to trim. Escape cancels."))
+        toolTip = title + " · " + L10n.tr("Drag outward to add space, or inward to trim. Escape cancels.")
     }
     override func draw(_ dirtyRect: NSRect) {
         let dot = NSBezierPath(ovalIn: bounds.insetBy(dx: 5, dy: 5))

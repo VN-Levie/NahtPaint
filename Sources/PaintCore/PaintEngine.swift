@@ -354,6 +354,8 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         return result
     }
     public func canvasImage() -> NSImage { displayBitmap().nsImage() }
+    /// Visible artwork bounds (pixels, text and pending selection), ignoring blank margins.
+    func contentBounds() -> CGRect? { displayBitmap().contentBounds() }
     /// Inspect the visible canvas without committing a selection or ending text input.
     public func pngByteCount() async -> Int? {
         guard !Task.isCancelled else { return nil }
@@ -438,9 +440,17 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         guard [left, top, right, bottom].allSatisfy({ (0...8192).contains($0) }) else {
             throw PaintError.invalidSize
         }
+        try adjustCanvasEdges(left: left, top: top, right: right, bottom: bottom)
+    }
+    /// Move each canvas edge outward (positive) or inward (negative) as one undo step.
+    /// Pixels and editable text keep their scale; only content beyond an inward edge is removed.
+    public func adjustCanvasEdges(left: Int = 0, top: Int = 0, right: Int = 0, bottom: Int = 0) throws {
+        guard [left, top, right, bottom].allSatisfy({ (-8192...8192).contains($0) }) else {
+            throw PaintError.invalidSize
+        }
         let newWidth = width + left + right, newHeight = height + top + bottom
         try Bitmap.validate(newWidth, newHeight)
-        guard newWidth != width || newHeight != height else { return }
+        guard left != 0 || top != 0 || right != 0 || bottom != 0 else { return }
         finishEditing()
         // Preserve pending pixels beyond the old edges: placing the selection on the
         // old canvas alone would clip the very content this expansion can reveal.
@@ -449,24 +459,42 @@ public enum PaintTool: String, CaseIterable, Identifiable {
         commitSelection()
         let before = snapshot()
         let sourceRaster = pending == nil ? bitmap : unplacedRaster
-        var expanded = Bitmap(width: newWidth, height: newHeight)
-        for y in 0..<height {
-            let source = y * width * 4, target = ((y + top) * newWidth + left) * 4
-            expanded.pixels.replaceSubrange(target..<(target + width * 4),
-                                           with: sourceRaster.pixels[source..<(source + width * 4)])
+        var adjusted = Bitmap(width: newWidth, height: newHeight)
+        // The retained part of the old canvas, in old coordinates.
+        let keepX = max(0, -left)..<min(width, width + right)
+        let keepY = max(0, -top)..<min(height, height + bottom)
+        if !keepX.isEmpty {
+            for y in keepY {
+                let source = (y * width + keepX.lowerBound) * 4
+                let target = ((y + top) * newWidth + keepX.lowerBound + left) * 4
+                adjusted.pixels.replaceSubrange(target..<(target + keepX.count * 4),
+                                                with: sourceRaster.pixels[source..<(source + keepX.count * 4)])
+            }
         }
         if let pending {
-            expanded.composite(pending.image, in: pending.rect.offsetBy(dx: CGFloat(left), dy: CGFloat(top)),
+            adjusted.composite(pending.image, in: pending.rect.offsetBy(dx: CGFloat(left), dy: CGFloat(top)),
                                flippedHorizontally: pending.flippedHorizontally,
                                flippedVertically: pending.flippedVertically,
                                replacing: pending.originalRect == pending.rect)
         }
-        for index in textObjects.indices {
-            textObjects[index].position.x += CGFloat(left)
-            textObjects[index].position.y += CGFloat(top)
+        let cropping = min(left, top, right, bottom) < 0
+        let far: CGFloat = 1_000_000
+        // Only inward edges clip text; outward or unchanged edges keep text that already overhangs.
+        let retained = CGRect(x: left < 0 ? CGFloat(-left) : -far, y: top < 0 ? CGFloat(-top) : -far,
+                              width: 0, height: 0)
+        let retainedRect = CGRect(x: retained.minX, y: retained.minY,
+                                  width: (right < 0 ? CGFloat(width + right) : far) - retained.minX,
+                                  height: (bottom < 0 ? CGFloat(height + bottom) : far) - retained.minY)
+        textObjects = textObjects.compactMap { object in
+            guard var moved = cropping ? object.clipped(to: retainedRect) : object else { return nil }
+            if cropping { moved.position.x += retainedRect.minX; moved.position.y += retainedRect.minY }
+            moved.position.x += CGFloat(left)
+            moved.position.y += CGFloat(top)
+            return moved
         }
-        bitmap = expanded; width = newWidth; height = newHeight
-        record(before); status = L10n.tr("Canvas resized")
+        if selectedTextID.map({ id in !textObjects.contains { $0.id == id } }) == true { selectedTextID = nil }
+        bitmap = adjusted; width = newWidth; height = newHeight
+        record(before); status = L10n.tr(cropping ? "Canvas cropped" : "Canvas resized")
     }
     public func undo() {
         finishEditing()

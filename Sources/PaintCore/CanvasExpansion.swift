@@ -30,12 +30,37 @@ enum CanvasExpansionHandle: CaseIterable {
     }
 }
 
+/// Blank margin on each side of the artwork, where an inward drag pauses.
+struct CanvasContentInsets: Equatable {
+    var left = 0, top = 0, right = 0, bottom = 0
+    init(left: Int = 0, top: Int = 0, right: Int = 0, bottom: Int = 0) {
+        self.left = left; self.top = top; self.right = right; self.bottom = bottom
+    }
+    init(content: CGRect?, width: Int, height: Int) {
+        guard let content else { return }
+        left = max(0, Int(content.minX)); top = max(0, Int(content.minY))
+        right = max(0, width - Int(content.maxX)); bottom = max(0, height - Int(content.maxY))
+    }
+}
+
+/// Signed edge offsets: positive adds space, negative crops that side.
 struct CanvasExpansionPadding: Equatable {
+    /// Screen distance an inward drag must travel past a stop before it moves on.
+    static let detent: CGFloat = 24
+
     var left = 0
     var top = 0
     var right = 0
     var bottom = 0
-    var isEmpty: Bool { left + top + right + bottom == 0 }
+    /// True while an inward drag is paused at the artwork edge.
+    var holdingAtContent = false
+    var isEmpty: Bool { left == 0 && top == 0 && right == 0 && bottom == 0 }
+    var isCropping: Bool { min(left, top, right, bottom) < 0 }
+
+    init(left: Int = 0, top: Int = 0, right: Int = 0, bottom: Int = 0, holdingAtContent: Bool = false) {
+        self.left = left; self.top = top; self.right = right; self.bottom = bottom
+        self.holdingAtContent = holdingAtContent
+    }
 
     func rect(from original: CGRect, zoom: CGFloat) -> CGRect {
         CGRect(x: original.minX - CGFloat(left) * zoom, y: original.minY - CGFloat(top) * zoom,
@@ -43,30 +68,49 @@ struct CanvasExpansionPadding: Equatable {
                height: original.height + CGFloat(top + bottom) * zoom)
     }
 
+    /// Map an outward screen distance to pixels. Inward, the value pauses for `detent` points
+    /// where the blank margin ends, so blank space is trimmed exactly and cropping into the
+    /// artwork needs a deliberate push past it.
+    static func detented(_ screen: CGFloat, zoom: CGFloat, contentInset: Int) -> (pixels: CGFloat, holding: Bool) {
+        let pixels = screen / zoom, stop = -CGFloat(contentInset)
+        guard contentInset > 0, pixels <= stop else { return (pixels, false) }
+        if screen > stop * zoom - detent { return (stop, true) }
+        return ((screen + detent) / zoom, false)
+    }
+
     static func dragging(_ handle: CanvasExpansionHandle, translation: CGPoint, zoom: CGFloat,
-                         width: Int, height: Int) -> Self {
+                         width: Int, height: Int, content: CanvasContentInsets = CanvasContentInsets()) -> Self {
         guard zoom.isFinite, zoom > 0, translation.x.isFinite, translation.y.isFinite,
               width > 0, height > 0, width <= 8192, height <= 8192, width * height <= 24_000_000 else { return Self() }
-        let dx = translation.x / zoom, dy = translation.y / zoom
-        let horizontal = handle.extendsLeft ? -dx : handle.extendsRight ? dx : 0
-        let vertical = handle.extendsTop ? -dy : handle.extendsBottom ? dy : 0
-        let extraWidth = Int(max(0, min(CGFloat(8192 - width), horizontal.rounded())))
-        let extraHeight = Int(max(0, min(CGFloat(8192 - height), vertical.rounded())))
-        var addedWidth = extraWidth, addedHeight = extraHeight
-        if (width + extraWidth) * (height + extraHeight) > 24_000_000 {
+        let horizontal = handle.extendsLeft ? -translation.x : handle.extendsRight ? translation.x : 0
+        let vertical = handle.extendsTop ? -translation.y : handle.extendsBottom ? translation.y : 0
+        let x = (handle.extendsLeft || handle.extendsRight)
+            ? detented(horizontal, zoom: zoom, contentInset: handle.extendsLeft ? content.left : content.right) : (pixels: 0, holding: false)
+        let y = (handle.extendsTop || handle.extendsBottom)
+            ? detented(vertical, zoom: zoom, contentInset: handle.extendsTop ? content.top : content.bottom) : (pixels: 0, holding: false)
+        // Keep at least one pixel; never exceed the dimension limit.
+        let deltaWidth = Int(max(CGFloat(1 - width), min(CGFloat(8192 - width), x.pixels.rounded())))
+        let deltaHeight = Int(max(CGFloat(1 - height), min(CGFloat(8192 - height), y.pixels.rounded())))
+        var addedWidth = deltaWidth, addedHeight = deltaHeight
+        if (width + deltaWidth) * (height + deltaHeight) > 24_000_000 {
             // Preserve the pointer's direction while stopping at the allocation limit.
+            let growWidth = max(0, deltaWidth), growHeight = max(0, deltaHeight)
+            func scaled(_ grow: Int, _ delta: Int, _ fraction: Double) -> Int {
+                grow > 0 ? Int(floor(Double(grow) * fraction)) : delta
+            }
             var lower: Double = 0, upper: Double = 1
             for _ in 0..<40 {
                 let fraction = (lower + upper) / 2
-                let w = Int(floor(Double(extraWidth) * fraction))
-                let h = Int(floor(Double(extraHeight) * fraction))
-                if (width + w) * (height + h) <= 24_000_000 { lower = fraction }
-                else { upper = fraction }
+                if (width + scaled(growWidth, deltaWidth, fraction)) * (height + scaled(growHeight, deltaHeight, fraction)) <= 24_000_000 {
+                    lower = fraction
+                } else { upper = fraction }
             }
-            addedWidth = Int(floor(Double(extraWidth) * lower))
-            addedHeight = Int(floor(Double(extraHeight) * lower))
+            addedWidth = scaled(growWidth, deltaWidth, lower)
+            addedHeight = scaled(growHeight, deltaHeight, lower)
         }
+        let holding = [x.holding, y.holding].compactMap { $0 }
         return Self(left: handle.extendsLeft ? addedWidth : 0, top: handle.extendsTop ? addedHeight : 0,
-                    right: handle.extendsRight ? addedWidth : 0, bottom: handle.extendsBottom ? addedHeight : 0)
+                    right: handle.extendsRight ? addedWidth : 0, bottom: handle.extendsBottom ? addedHeight : 0,
+                    holdingAtContent: x.holding || y.holding)
     }
 }

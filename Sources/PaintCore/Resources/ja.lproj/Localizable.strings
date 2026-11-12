@@ -198,7 +198,7 @@
 
 "Canvas width × height in pixels" = "キャンバスの幅 × 高さ（ピクセル）";
 "PNG size of the entire canvas. Clipboard apps may use a different format." = "キャンバス全体の PNG サイズです。ペースト先のアプリは別の形式を使う場合があります。";
-"Drag outward to add space. Escape cancels." = "外側へドラッグして余白を追加。Esc でキャンセル。";
+"Drag outward to add space, or inward to trim. Escape cancels." = "外側へドラッグで余白を追加、内側へドラッグで切り取り。Esc でキャンセル。";
 "Canvas expansion cancelled" = "キャンバスの拡張をキャンセルしました";
 "Expand canvas left" = "キャンバスを左へ拡張";
 "Expand canvas right" = "キャンバスを右へ拡張";
@@ -215,3 +215,6 @@
 "Could not start NahtPaint" = "NahtPaint を起動できませんでした";
 "Could not open the request in the running NahtPaint" = "実行中の NahtPaint で開けませんでした";
 "Try again from its menu bar." = "メニューバーのアイコンから再試行してください。";
+"Blank space trimmed · keep dragging to crop" = "余白を削除しました · さらにドラッグで画像を切り取り";
+"Cropping artwork" = "画像を切り取り中";
+"Canvas cropped" = "キャンバスを切り取りました";

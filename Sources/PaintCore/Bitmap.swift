@@ -134,6 +134,45 @@ struct Bitmap {
                          flippedHorizontally: flippedHorizontally, flippedVertically: flippedVertically)
         return result
     }
+    /// The smallest rectangle holding every non-background pixel, or nil when the image is blank.
+    /// White and fully transparent pixels count as background, and so does a uniform border
+    /// colour shared by all four corners (for example a dark screenshot backdrop).
+    func contentBounds() -> CGRect? {
+        guard width > 0, height > 0 else { return nil }
+        return pixels.withUnsafeBufferPointer { p -> CGRect? in
+            func px(_ x: Int, _ y: Int) -> Int { (y * width + x) * 4 }
+            let corners = [px(0, 0), px(width - 1, 0), px(0, height - 1), px(width - 1, height - 1)]
+            func close(_ a: Int, _ b: Int) -> Bool {
+                abs(Int(p[a]) - Int(p[b])) <= 6 && abs(Int(p[a+1]) - Int(p[b+1])) <= 6
+                    && abs(Int(p[a+2]) - Int(p[b+2])) <= 6 && abs(Int(p[a+3]) - Int(p[b+3])) <= 6
+            }
+            let border: (Int, Int, Int, Int)? = corners.dropFirst().allSatisfy { close($0, corners[0]) }
+                ? (Int(p[corners[0]]), Int(p[corners[0]+1]), Int(p[corners[0]+2]), Int(p[corners[0]+3])) : nil
+            func blank(_ i: Int) -> Bool {
+                let a = p[i+3]
+                if a < 8 { return true }
+                if a == 255 && p[i] >= 248 && p[i+1] >= 248 && p[i+2] >= 248 { return true }
+                if let border {
+                    return abs(Int(p[i]) - border.0) <= 6 && abs(Int(p[i+1]) - border.1) <= 6
+                        && abs(Int(p[i+2]) - border.2) <= 6 && abs(Int(a) - border.3) <= 6
+                }
+                return false
+            }
+            func rowBlank(_ y: Int) -> Bool {
+                for x in 0..<width where !blank(px(x, y)) { return false }
+                return true
+            }
+            guard let top = (0..<height).first(where: { !rowBlank($0) }) else { return nil }
+            let bottom = (top..<height).reversed().first { !rowBlank($0) } ?? top
+            func columnBlank(_ x: Int) -> Bool {
+                for y in top...bottom where !blank(px(x, y)) { return false }
+                return true
+            }
+            let left = (0..<width).first { !columnBlank($0) } ?? 0
+            let right = (left..<width).reversed().first { !columnBlank($0) } ?? left
+            return CGRect(x: left, y: top, width: right - left + 1, height: bottom - top + 1)
+        }
+    }
     func color(at point: CGPoint) -> NSColor? {
         let x = Int(point.x), y = Int(point.y)
         guard x >= 0, y >= 0, x < width, y < height else { return nil }
