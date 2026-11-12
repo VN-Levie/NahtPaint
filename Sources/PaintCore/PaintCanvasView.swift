@@ -164,10 +164,11 @@ public struct PaintCanvasView: NSViewRepresentable {
 
     func beginExpansion(_ handle: CanvasExpansionHandle, event: NSEvent) {
         guard let scroll = enclosingScrollView as? CanvasScrollView else { return }
+        // What the user sees now; the artwork must stay exactly here for the whole drag.
+        let anchor = canvas.convert(CGPoint.zero, to: nil)
         canvas.engine.finishEditing()
         scroll.updateCanvas()
         let zoom = max(0.05, min(16, canvas.engine.zoom))
-        let point = convert(event.locationInWindow, from: nil)
         let frame = canvas.frame
         // Reserve workspace before tracking. Shifting the scroll origin by the same
         // amount keeps the artwork still on screen; its frame is then frozen for the drag.
@@ -176,7 +177,7 @@ public struct PaintCanvasView: NSViewRepresentable {
         let shift = CGPoint(x: max(0, horizontalRoom - frame.minX), y: max(0, verticalRoom - frame.minY))
         let shiftedFrame = frame.offsetBy(dx: shift.x, dy: shift.y)
         let scrollOrigin = scroll.contentView.bounds.origin
-        expansion = ExpansionDrag(handle: handle, start: CGPoint(x: point.x + shift.x, y: point.y + shift.y),
+        expansion = ExpansionDrag(handle: handle, start: .zero,
                                   originalFrame: shiftedFrame, width: canvas.engine.width, height: canvas.engine.height,
                                   zoom: zoom, renderVersion: canvas.engine.renderVersion,
                                   content: CanvasContentInsets(content: canvas.engine.contentBounds(),
@@ -186,13 +187,29 @@ public struct PaintCanvasView: NSViewRepresentable {
         canvas.frame = shiftedFrame
         scroll.contentView.scroll(to: CGPoint(x: scrollOrigin.x + shift.x, y: scrollOrigin.y + shift.y))
         scroll.reflectScrolledClipView(scroll.contentView)
+        scroll.layoutSubtreeIfNeeded()
+        // Appearing scrollers or content insets can stop the scroll a few points short.
+        // Move the frozen frame by the measured error instead of letting the artwork jump.
+        let actual = canvas.convert(CGPoint.zero, to: nil)
+        if abs(actual.x - anchor.x) > 0.01 || abs(actual.y - anchor.y) > 0.01 {
+            let corrected = shiftedFrame.offsetBy(dx: anchor.x - actual.x, dy: actual.y - anchor.y)
+            canvas.frame = corrected
+            expansion?.originalFrame = corrected
+        }
+        // Measure the pointer after scrolling so the first drag event starts from zero.
+        expansion?.start = convert(event.locationInWindow, from: nil)
         updateHandles()
     }
 
     func dragExpansion(with event: NSEvent) {
         guard var drag = expansion else { return }
         guard expansionMatchesDocument else { cancelExpansion(); return }
-        if event.type == .leftMouseDragged { autoscroll(with: event) }
+        // AppKit's autoscroll also nudges the view while the pointer is inside it, which drifts
+        // the artwork under the pointer; only scroll when the pointer has left the visible area.
+        if event.type == .leftMouseDragged, let clip = enclosingScrollView?.contentView,
+           !clip.bounds.contains(clip.convert(event.locationInWindow, from: nil)) {
+            autoscroll(with: event)
+        }
         let point = convert(event.locationInWindow, from: nil)
         let previous = drag
         drag.padding = .dragging(drag.handle, translation: CGPoint(x: point.x - drag.start.x, y: point.y - drag.start.y),
@@ -242,16 +259,30 @@ public struct PaintCanvasView: NSViewRepresentable {
             } catch { canvas.engine.report(error.localizedDescription) }
         }
         let zoom = max(0.05, min(16, canvas.engine.zoom))
+        // Where the new top-left pixel is on screen right now; the canvas frame is not updated yet.
+        let anchor = canvas.convert(CGPoint(x: -CGFloat(applied.left) * zoom, y: -CGFloat(applied.top) * zoom), to: nil)
         // Keep the retained artwork exactly where it was on screen.
         scroll.pinnedPlacement = .init(origin: CGPoint(x: visibleOffset.x - CGFloat(applied.left) * zoom,
                                                        y: visibleOffset.y - CGFloat(applied.top) * zoom),
                                        width: canvas.engine.width, height: canvas.engine.height, zoom: zoom)
-        scroll.updateCanvas()
-        let origin = CGPoint(x: canvas.frame.minX + CGFloat(applied.left) * zoom - visibleOffset.x,
-                             y: canvas.frame.minY + CGFloat(applied.top) * zoom - visibleOffset.y)
-        let proposed = CGRect(origin: origin, size: scroll.contentView.bounds.size)
-        scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(proposed).origin)
-        scroll.reflectScrolledClipView(scroll.contentView)
+        func place() {
+            scroll.updateCanvas()
+            let origin = CGPoint(x: canvas.frame.minX + CGFloat(applied.left) * zoom - visibleOffset.x,
+                                 y: canvas.frame.minY + CGFloat(applied.top) * zoom - visibleOffset.y)
+            let proposed = CGRect(origin: origin, size: scroll.contentView.bounds.size)
+            scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(proposed).origin)
+            scroll.reflectScrolledClipView(scroll.contentView)
+            scroll.layoutSubtreeIfNeeded()
+        }
+        place()
+        // Scrollers hiding or content insets can still nudge the view; correct by the measured error.
+        let actual = canvas.convert(CGPoint.zero, to: nil)
+        if var pin = scroll.pinnedPlacement, abs(actual.x - anchor.x) > 0.5 || abs(actual.y - anchor.y) > 0.5 {
+            pin.origin.x += anchor.x - actual.x
+            pin.origin.y -= anchor.y - actual.y  // window coordinates grow upward; the board is flipped
+            scroll.pinnedPlacement = pin
+            place()
+        }
         window?.makeFirstResponder(canvas)
         needsDisplay = true
     }

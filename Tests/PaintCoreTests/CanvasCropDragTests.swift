@@ -120,11 +120,14 @@ final class CanvasCropDragTests: XCTestCase {
 
     func testReleasedEdgeDragKeepsRetainedArtworkStillAndIgnoresScrolling() async throws {
         try await MainActor.run {
+          for legacy in [false, true] {
             _ = NSApplication.shared
             let engine = PaintEngine(width: 600, height: 400)
             let scroll = CanvasScrollView(engine: engine)
+            // Legacy scrollers (a mouse is attached) appear while the workspace grows during a drag.
+            if legacy { scroll.scrollerStyle = .legacy }
             let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 1100, height: 760),
-                                  styleMask: [.borderless], backing: .buffered, defer: false)
+                                  styleMask: legacy ? [.titled] : [.borderless], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.contentView = scroll
             defer { window.contentView = nil }
@@ -146,8 +149,11 @@ final class CanvasCropDragTests: XCTestCase {
                 let topLeftBefore = scroll.canvas.convert(CGPoint(x: 0, y: side == .top ? 50 : 0), to: nil)
                 let handle = try XCTUnwrap(scroll.board.handles.first { $0.handle == side })
                 let start = handle.convert(CGPoint(x: handle.bounds.midX, y: handle.bounds.midY), to: nil)
+                let beforeDown = scroll.canvas.convert(CGPoint.zero, to: nil)
                 handle.mouseDown(with: try mouse(.leftMouseDown, start))
                 let during = scroll.canvas.convert(CGPoint.zero, to: nil)
+                XCTAssertEqual(during.x, beforeDown.x, accuracy: 0.01, "Starting a drag must not move the artwork")
+                XCTAssertEqual(during.y, beforeDown.y, accuracy: 0.01)
                 scroll.scrollWheel(with: try pan())
                 XCTAssertEqual(scroll.canvas.convert(CGPoint.zero, to: nil), during, "Momentum must not move the canvas mid-drag")
                 let end = CGPoint(x: start.x, y: start.y + dy)
@@ -161,6 +167,7 @@ final class CanvasCropDragTests: XCTestCase {
             engine.zoom = 0.5
             scroll.updateCanvas()
             XCTAssertNil(scroll.pinnedPlacement, "A zoom change recentres as before")
+          }
         }
     }
 }
